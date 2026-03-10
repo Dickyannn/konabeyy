@@ -16,9 +16,9 @@ class AuthController extends Controller
      */
     public function showLogin()
     {
-        // Redirect ke dashboard jika sudah login
+        // Redirect ke dashboard sesuai role jika sudah login
         if (Auth::check()) {
-            return redirect()->route('dashboard');
+            return $this->redirectByRole(Auth::user());
         }
 
         return view('auth.login');
@@ -46,13 +46,14 @@ class AuthController extends Controller
             'password' => $credentials['password'],
         ], $request->boolean('remember'))) {
             // Update last login time
+            $user = Auth::user();
             $user->update(['last_login' => now()]);
 
             // Log audit
             $this->logAudit('LOGIN', null, null);
 
-            // Redirect ke dashboard
-            return redirect()->intended(route('dashboard'))
+            // Redirect sesuai role user
+            return $this->redirectByRole($user)
                 ->with('success', 'Selamat datang ' . $user->nama . '!');
         }
 
@@ -98,4 +99,30 @@ class AuthController extends Controller
             \Log::error('Audit log gagal: ' . $e->getMessage());
         }
     }
+
+    /**
+     * Redirect user ke dashboard sesuai dengan rolenya
+     */
+    private function redirectByRole(User $user)
+    {
+        // Load role relationship
+        $user->load('role');
+
+        // Tentukan redirect berdasarkan kode role
+        $roleCode = $user->role->kode_role ?? null;
+
+        switch ($roleCode) {
+            case 'master_system':
+                return redirect()->route('master.dashboard');
+            case 'personal_admin':
+                return redirect()->route('dashboard');
+            case 'payroll_admin':
+                return redirect()->route('dashboard');
+            case 'personalia':
+                return redirect()->route('dashboard');
+            default:
+                return redirect()->route('dashboard');
+        }
+    }
 }
+
