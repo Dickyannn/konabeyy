@@ -40,9 +40,9 @@
         </div>
         <ul class="dropdown-menu dropdown-menu-end dropdown-menu-user mt-1">
             <li>
-                <div class="dropdown-item-user">
+                <a href="{{ route('profile.edit') }}" class="dropdown-item-user">
                     <i class="bi bi-person-circle"></i> Profil Saya
-                </div>
+                </a>
             </li>
             <li><hr style="margin: 0.4rem 0; border-color: var(--border);"></li>
             <li>
@@ -68,6 +68,15 @@
         <h1>Master System</h1>
         <p>Konfigurasi &amp; parameter sistem</p>
     </div>
+
+    {{-- Success message --}}
+    @if(session('success'))
+        <div class="alert alert-success alert-dismissible fade show mb-3" role="alert">
+            <i class="bi bi-check-circle-fill me-2"></i>
+            {{ session('success') }}
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+    @endif
 
     {{-- ── STAT CARDS ─────────────────────────────────── --}}
     {{--
@@ -114,18 +123,6 @@
                 <div class="stat-label">Log Perubahan</div>
                 <div class="stat-sub">aktivitas bulan ini</div>
             </div>
-        </div>
-    </div>
-
-    {{-- ── ALERTS ──────────────────────────────────────── --}}
-    <div class="d-flex flex-column gap-2 mb-1">
-        <div class="alert-info-hrms">
-            <i class="bi bi-info-circle-fill flex-shrink-0"></i>
-            Parameter BPJS belum diupdate untuk 2024
-        </div>
-        <div class="alert-success-hrms">
-            <i class="bi bi-check-circle-fill flex-shrink-0"></i>
-            Backup database terakhir: hari ini 06:00
         </div>
     </div>
 
@@ -229,6 +226,18 @@
             </div>
             <div class="modal-body">
 
+                {{-- Error display --}}
+                @if($errors->any())
+                    <div class="alert alert-danger mb-3">
+                        <strong>Validasi gagal:</strong>
+                        <ul class="mb-0 mt-2">
+                            @foreach($errors->all() as $error)
+                                <li>{{ $error }}</li>
+                            @endforeach
+                        </ul>
+                    </div>
+                @endif
+
                 {{-- Form tambah --}}
                 <div class="modal-section-title">Tambah / Edit Golongan</div>
                 <form method="POST" action="{{ route('master.golongan.store') }}" id="formGolongan">
@@ -255,6 +264,12 @@
                         <div class="col-12">
                             <label class="form-label">Deskripsi</label>
                             <input type="text" name="deskripsi" id="deskGolongan" class="form-control" placeholder="Keterangan tambahan">
+                        </div>
+                        <div class="col-12">
+                            <div class="form-check">
+                                <input type="checkbox" name="is_active" id="isActiveGolongan" class="form-check-input" value="1">
+                                <label class="form-check-label" for="isActiveGolongan">Status Aktif</label>
+                            </div>
                         </div>
                     </div>
                     <div class="d-flex gap-2 mt-3">
@@ -294,7 +309,7 @@
                                     @endif
                                 </td>
                                 <td class="d-flex gap-1">
-                                    <button class="btn-sm-action btn-edit" onclick="editGolongan({{ $g }})">
+                                    <button type="button" class="btn-sm-action btn-edit" onclick="editGolongan({{ $g->toJson() }})" data-bs-dismiss="modal" data-bs-toggle="modal" data-bs-target="#modalGolongan">
                                         <i class="bi bi-pencil"></i> Edit
                                     </button>
                                     <form method="POST" action="{{ route('master.golongan.destroy', $g->id) }}" onsubmit="return confirm('Hapus golongan ini?')">
@@ -354,6 +369,17 @@
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
             <div class="modal-body">
+                @if($errors->any())
+                    <div class="alert alert-danger mb-3">
+                        <strong>Validasi gagal:</strong>
+                        <ul class="mb-0 mt-2">
+                            @foreach($errors->all() as $error)
+                                <li>{{ $error }}</li>
+                            @endforeach
+                        </ul>
+                    </div>
+                @endif
+
                 <div class="alert-info-hrms mb-3" style="font-size:.8rem;">
                     <i class="bi bi-info-circle-fill"></i>
                     Karyawan yang mendapat car allowance <strong>tidak</strong> mendapat uang makan &amp; transport.
@@ -387,7 +413,7 @@
                         </div>
                     </div>
                     <div class="d-flex gap-2 mt-3">
-                        <button type="submit" class="btn-primary-hrms"><i class="bi bi-check-lg me-1"></i> Simpan</button>
+                        <button type="submit" class="btn-primary-hrms" id="btnCA"><i class="bi bi-check-lg me-1"></i> Simpan</button>
                         <button type="button" class="btn-outline-hrms" onclick="resetFormCA()">Reset</button>
                     </div>
                 </form>
@@ -406,8 +432,11 @@
                                 <td>{{ \Carbon\Carbon::parse($ca->berlaku_mulai)->format('d/m/Y') }}</td>
                                 <td>{{ $ca->berlaku_selesai ? \Carbon\Carbon::parse($ca->berlaku_selesai)->format('d/m/Y') : '<span class="badge-aktif">Aktif</span>' }}</td>
                                 <td class="d-flex gap-1">
-                                    <button class="btn-sm-action btn-edit">Edit</button>
-                                    <button class="btn-sm-action btn-del"><i class="bi bi-trash"></i></button>
+                                    <button type="button" class="btn-sm-action btn-edit" onclick="editCarAllowance({{ $ca->toJson() }})" data-bs-dismiss="modal" data-bs-toggle="modal" data-bs-target="#modalCarAllowance"><i class="bi bi-pencil"></i> Edit</button>
+                                    <form method="POST" action="{{ route('master.car-allowance.destroy', $ca->id) }}" onsubmit="return confirm('Hapus car allowance ini?')" style="display:inline;">
+                                        @csrf @method('DELETE')
+                                        <button type="submit" class="btn-sm-action btn-del"><i class="bi bi-trash"></i></button>
+                                    </form>
                                 </td>
                             </tr>
                             @empty
@@ -528,14 +557,26 @@
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
             <div class="modal-body">
+                @if($errors->any())
+                    <div class="alert alert-danger mb-3">
+                        <strong>Validasi gagal:</strong>
+                        <ul class="mb-0 mt-2">
+                            @foreach($errors->all() as $error)
+                                <li>{{ $error }}</li>
+                            @endforeach
+                        </ul>
+                    </div>
+                @endif
 
                 <div class="modal-section-title">Tambah / Edit Komponen</div>
-                <form method="POST" action="{{ route('master.komponen-gaji.store') }}">
+                <form method="POST" action="{{ route('master.komponen-gaji.store') }}" id="formKG">
                     @csrf
+                    <input type="hidden" name="_method" id="methodKG" value="POST">
+                    <input type="hidden" name="id" id="idKG">
                     <div class="row g-3">
                         <div class="col-sm-4">
                             <label class="form-label">Golongan <span class="text-danger">*</span></label>
-                            <select name="id_golongan" class="form-select" required>
+                            <select name="id_golongan" id="golonganKG" class="form-select" required>
                                 <option value="">-- Pilih --</option>
                                 @foreach($golongans ?? [] as $g)
                                     <option value="{{ $g->id }}">{{ $g->kode_golongan }}</option>
@@ -545,28 +586,27 @@
                         </div>
                         <div class="col-sm-4">
                             <label class="form-label">Uang Makan (Rp/hari)</label>
-                            <input type="number" name="uang_makan" class="form-control" placeholder="35000">
+                            <input type="number" name="uang_makan" id="uangMakanKG" class="form-control" placeholder="35000">
                         </div>
                         <div class="col-sm-4">
                             <label class="form-label">Uang Transport (Rp/hari)</label>
-                            <input type="number" name="uang_transport" class="form-control" placeholder="30000">
+                            <input type="number" name="uang_transport" id="uangTransportKG" class="form-control" placeholder="30000">
                         </div>
                         <div class="col-sm-4">
                             <label class="form-label">Tunjangan Lain (Rp/bln)</label>
-                            <input type="number" name="tunjangan_lain" class="form-control" placeholder="0">
+                            <input type="number" name="tunjangan_lain" id="tunjanganKG" class="form-control" placeholder="0">
                         </div>
                         <div class="col-sm-4">
                             <label class="form-label">Berlaku Mulai <span class="text-danger">*</span></label>
-                            <input type="date" name="berlaku_mulai" class="form-control" required>
+                            <input type="date" name="berlaku_mulai" id="berlakuKG" class="form-control" required>
                         </div>
                     </div>
                     <div class="alert-info-hrms mt-3" style="font-size:.78rem;">
                         <i class="bi bi-info-circle-fill"></i>
                         Komponen ini hanya berlaku untuk karyawan yang <strong>tidak</strong> memiliki car allowance.
                     </div>
-                    <button type="submit" class="btn-primary-hrms mt-3">
-                        <i class="bi bi-check-lg me-1"></i> Simpan
-                    </button>
+                    <button type="submit" class="btn-primary-hrms mt-3" id="btnKG"><i class="bi bi-check-lg me-1"></i> Simpan</button>
+                    <button type="button" class="btn-outline-hrms" onclick="resetFormKG()">Reset</button>
                 </form>
 
                 <div class="modal-section-title mt-4">Daftar Komponen Gaji</div>
@@ -583,8 +623,11 @@
                                 <td>Rp {{ number_format($k->uang_transport,0,',','.') }}</td>
                                 <td>{{ \Carbon\Carbon::parse($k->berlaku_mulai)->format('d/m/Y') }}</td>
                                 <td class="d-flex gap-1">
-                                    <button class="btn-sm-action btn-edit">Edit</button>
-                                    <button class="btn-sm-action btn-del"><i class="bi bi-trash"></i></button>
+                                    <button type="button" class="btn-sm-action btn-edit" onclick="editKomponenGaji({{ $k->toJson() }})" data-bs-dismiss="modal" data-bs-toggle="modal" data-bs-target="#modalKomponenGaji"><i class="bi bi-pencil"></i> Edit</button>
+                                    <form method="POST" action="{{ route('master.komponen-gaji.destroy', $k->id) }}" onsubmit="return confirm('Hapus komponen gaji ini?')" style="display:inline;">
+                                        @csrf @method('DELETE')
+                                        <button type="submit" class="btn-sm-action btn-del"><i class="bi bi-trash"></i></button>
+                                    </form>
                                 </td>
                             </tr>
                             @empty
@@ -614,6 +657,16 @@
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
             <div class="modal-body">
+                @if($errors->any())
+                    <div class="alert alert-danger mb-3">
+                        <strong>Validasi gagal:</strong>
+                        <ul class="mb-0 mt-2">
+                            @foreach($errors->all() as $error)
+                                <li>{{ $error }}</li>
+                            @endforeach
+                        </ul>
+                    </div>
+                @endif
 
                 <div class="modal-section-title">Tambah / Edit User</div>
                 <form method="POST" action="{{ route('master.users.store') }}" id="formUser">
@@ -663,6 +716,12 @@
                             <label class="form-label">Konfirmasi Password</label>
                             <input type="password" name="password_confirmation" class="form-control" placeholder="Ulangi password">
                         </div>
+                        <div class="col-12">
+                            <div class="form-check">
+                                <input type="checkbox" name="is_active" id="isActiveUser" class="form-check-input" value="1">
+                                <label class="form-check-label" for="isActiveUser">Status Aktif</label>
+                            </div>
+                        </div>
                     </div>
                     <div class="d-flex gap-2 mt-3">
                         <button type="submit" class="btn-primary-hrms" id="btnUser"><i class="bi bi-check-lg me-1"></i> Tambah User</button>
@@ -695,12 +754,10 @@
                                 </td>
                                 <td>
                                     <div class="d-flex gap-1 flex-wrap">
-                                        <button class="btn-sm-action btn-edit" onclick="editUser({{ $u }})">Edit</button>
-                                        <form method="POST" action="{{ route('master.users.toggle-active', $u->id) }}">
-                                            @csrf @method('PATCH')
-                                            <button type="submit" class="btn-sm-action" style="background:rgba(245,166,35,0.1);color:#c47a00;">
-                                                {{ $u->is_active ? 'Nonaktifkan' : 'Aktifkan' }}
-                                            </button>
+                                        <button type="button" class="btn-sm-action btn-edit" onclick="editUser({{ $u->toJson() }})" data-bs-dismiss="modal" data-bs-toggle="modal" data-bs-target="#modalUser"><i class="bi bi-pencil"></i> Edit</button>
+                                        <form method="POST" action="{{ route('master.users.destroy', $u->id) }}" onsubmit="return confirm('Hapus user ini?')" style="display:inline;">
+                                            @csrf @method('DELETE')
+                                            <button type="submit" class="btn-sm-action btn-del" title="Hapus"><i class="bi bi-trash"></i></button>
                                         </form>
                                     </div>
                                 </td>
@@ -730,23 +787,33 @@
                 <h5 class="modal-title">🏢 Master Unit / PT</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
-            <div class="modal-body">
-
+            <div class="modal-body">                @if($errors->any())
+                    <div class="alert alert-danger mb-3">
+                        <strong>Validasi gagal:</strong>
+                        <ul class="mb-0 mt-2">
+                            @foreach($errors->all() as $error)
+                                <li>{{ $error }}</li>
+                            @endforeach
+                        </ul>
+                    </div>
+                @endif
                 <div class="modal-section-title">Tambah / Edit Unit</div>
-                <form method="POST" action="{{ route('master.unit-pt.store') }}">
+                <form method="POST" action="{{ route('master.unit-pt.store') }}" id="formUnitPt">
                     @csrf
+                    <input type="hidden" name="_method" id="methodUnitPt" value="POST">
+                    <input type="hidden" name="id" id="idUnitPt">
                     <div class="row g-3">
                         <div class="col-sm-4">
                             <label class="form-label">Kode Unit <span class="text-danger">*</span></label>
-                            <input type="text" name="kode_unit" class="form-control" placeholder="STP-PWK" required>
+                            <input type="text" name="kode_unit" id="kodeUnitPt" class="form-control" placeholder="STP-PWK" required>
                         </div>
                         <div class="col-sm-8">
                             <label class="form-label">Nama PT <span class="text-danger">*</span></label>
-                            <input type="text" name="nama_pt" class="form-control" placeholder="PT Suri Tani Pemuka" required>
+                            <input type="text" name="nama_pt" id="namaPt" class="form-control" placeholder="PT Suri Tani Pemuka" required>
                         </div>
                         <div class="col-sm-6">
                             <label class="form-label">Lokasi</label>
-                            <input type="text" name="lokasi" class="form-control" placeholder="Purwakarta">
+                            <input type="text" name="lokasi" id="lokasiPt" class="form-control" placeholder="Purwakarta">
                         </div>
                         <div class="col-sm-3 d-flex align-items-end">
                             <div class="form-check mb-2">
@@ -757,7 +824,8 @@
                     </div>
 
                     {{-- Cost Center --}}
-                    <div class="modal-section-title">Cost Center untuk Unit Ini</div>
+                    <div class="modal-section-title">Cost Center untuk Unit Ini <span class="text-danger">*</span></div>
+                    <small class="text-muted">Minimal 1 cost center harus diisi</small>
                     <div class="row g-3 mb-2" id="ccList">
                         <div class="col-sm-4">
                             <input type="text" name="cost_centers[]" class="form-control" placeholder="Umum">
@@ -770,9 +838,8 @@
                         </div>
                     </div>
 
-                    <button type="submit" class="btn-primary-hrms mt-2">
-                        <i class="bi bi-check-lg me-1"></i> Simpan
-                    </button>
+                    <button type="submit" class="btn-primary-hrms mt-2" id="btnUnitPt"><i class="bi bi-check-lg me-1"></i> Simpan</button>
+                    <button type="button" class="btn-outline-hrms" onclick="resetFormUnitPt()">Reset</button>
                 </form>
 
                 <div class="modal-section-title mt-4">Daftar Unit / PT</div>
@@ -790,8 +857,11 @@
                                 <td style="font-size:.75rem;">{{ $u->costCenters->pluck('nama_cc')->join(', ') }}</td>
                                 <td><span class="{{ $u->is_active ? 'badge-aktif' : 'badge-nonaktif' }}">{{ $u->is_active ? 'Aktif' : 'Nonaktif' }}</span></td>
                                 <td class="d-flex gap-1">
-                                    <button class="btn-sm-action btn-edit">Edit</button>
-                                    <button class="btn-sm-action btn-del"><i class="bi bi-trash"></i></button>
+                                    <button type="button" class="btn-sm-action btn-edit" onclick="editUnitPt({{ $u->toJson() }})" data-bs-dismiss="modal" data-bs-toggle="modal" data-bs-target="#modalUnitPt"><i class="bi bi-pencil"></i> Edit</button>
+                                    <form method="POST" action="{{ route('master.unit-pt.destroy', $u->id) }}" onsubmit="return confirm('Nonaktifkan unit ini?')" style="display:inline;">
+                                        @csrf @method('DELETE')
+                                        <button type="submit" class="btn-sm-action btn-del"><i class="bi bi-trash"></i></button>
+                                    </form>
                                 </td>
                             </tr>
                             @empty
@@ -811,6 +881,36 @@
 
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+
+{{-- Auto-reset forms when modals are shown (if opened from menu cards, not from edit buttons) --}}
+<script>
+document.getElementById('modalGolongan')?.addEventListener('show.bs.modal', function(e) {
+    if (e.relatedTarget?.className.includes('menu-card')) {
+        resetFormGolongan();
+    }
+});
+document.getElementById('modalCarAllowance')?.addEventListener('show.bs.modal', function(e) {
+    if (e.relatedTarget?.className.includes('menu-card')) {
+        resetFormCA();
+    }
+});
+document.getElementById('modalKomponenGaji')?.addEventListener('show.bs.modal', function(e) {
+    if (e.relatedTarget?.className.includes('menu-card')) {
+        resetFormKG();
+    }
+});
+document.getElementById('modalUnitPt')?.addEventListener('show.bs.modal', function(e) {
+    if (e.relatedTarget?.className.includes('menu-card')) {
+        resetFormUnitPt();
+    }
+});
+document.getElementById('modalUser')?.addEventListener('show.bs.modal', function(e) {
+    if (e.relatedTarget?.className.includes('menu-card')) {
+        resetFormUser?.();
+    }
+});
+</script>
+
 @vite(['resources/js/master/dashboard.js'])
 
 </body>

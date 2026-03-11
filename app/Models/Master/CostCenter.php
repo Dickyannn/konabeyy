@@ -12,7 +12,7 @@ class CostCenter extends Model
     public $timestamps = true;
 
     protected $fillable = [
-        'id_unit_pt',
+        'id_unit',
         'kode_cc',
         'nama_cc',
         'lokasi',
@@ -28,7 +28,7 @@ class CostCenter extends Model
     // Relationships
     public function unit(): BelongsTo
     {
-        return $this->belongsTo(UnitPt::class, 'id_unit_pt');
+        return $this->belongsTo(UnitPt::class, 'id_unit');
     }
 
     // Scopes

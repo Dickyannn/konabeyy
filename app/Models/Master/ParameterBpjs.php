@@ -8,7 +8,11 @@ class ParameterBpjs extends Model
 {
     protected $table = 'master_parameter_bpjs';
     protected $primaryKey = 'id';
-    public $timestamps = true;
+    
+    // Only created_at exists, no updated_at
+    public $timestamps = false;
+    const CREATED_AT = 'created_at';
+    const UPDATED_AT = null;
 
     protected $fillable = [
         'jht_perusahaan_pct',
@@ -33,10 +37,9 @@ class ParameterBpjs extends Model
         'jp_karyawan_pct' => 'decimal:4',
         'bpjs_kes_perusahaan_pct' => 'decimal:4',
         'bpjs_kes_karyawan_pct' => 'decimal:4',
-        'berlaku_mulai' => 'date',
-        'berlaku_selesai' => 'date',
+        'berlaku_mulai' => 'datetime',
+        'berlaku_selesai' => 'datetime',
         'created_at' => 'datetime',
-        'updated_at' => 'datetime',
     ];
 
     // Scopes

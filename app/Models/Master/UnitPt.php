@@ -27,7 +27,7 @@ class UnitPt extends Model
     // Relationships
     public function costCenters(): HasMany
     {
-        return $this->hasMany(CostCenter::class, 'id_unit_pt');
+        return $this->hasMany(CostCenter::class, 'id_unit');
     }
 
     // Scopes

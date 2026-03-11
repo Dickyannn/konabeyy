@@ -37,6 +37,7 @@ function editGolongan(data) {
     document.getElementById('gajiMin').value = data.gaji_pokok_min || '';
     document.getElementById('gajiMax').value = data.gaji_pokok_max || '';
     document.getElementById('deskGolongan').value = data.deskripsi || '';
+    document.getElementById('isActiveGolongan').checked = data.is_active ?? true;
     
     document.getElementById('formGolongan').action = `/master/golongan/${data.id}`;
     document.getElementById('btnGolongan').textContent = 'Simpan Perubahan';
@@ -47,6 +48,7 @@ function resetFormGolongan() {
     document.getElementById('methodGolongan').value = 'POST';
     document.getElementById('formGolongan').reset();
     document.getElementById('formGolongan').action = '{{ route("master.golongan.store") }}';
+    document.getElementById('isActiveGolongan').checked = true;
     document.getElementById('btnGolongan').textContent = 'Tambah Golongan';
 }
 
@@ -79,6 +81,19 @@ function deleteGolongan(id) {
 function resetFormCA() {
     document.getElementById('methodCA').value = 'POST';
     document.getElementById('formCA').reset();
+    document.getElementById('formCA').action = '{{ route("master.car-allowance.store") }}';
+    document.getElementById('btnCA').textContent = 'Simpan';
+}
+
+function editCarAllowance(data) {
+    document.getElementById('methodCA').value = 'PUT';
+    document.getElementById('idCA').value = data.id;
+    document.getElementById('golonganCA').value = data.id_golongan || '';
+    document.getElementById('nominalCA').value = data.nominal || '';
+    document.getElementById('berlakuCA').value = data.berlaku_mulai || '';
+    
+    document.getElementById('formCA').action = `/master/car-allowance/${data.id}`;
+    document.getElementById('btnCA').textContent = 'Simpan Perubahan';
 }
 
 function deleteCarAllowance(id) {
@@ -113,6 +128,7 @@ function editUser(data) {
     document.getElementById('namaUser').value = data.nama;
     document.getElementById('emailUser').value = data.email;
     document.getElementById('roleUser').value = data.id_role || '';
+    document.getElementById('isActiveUser').checked = data.is_active ?? true;
     
     const unitSelect = document.querySelectorAll('select[name="id_unit"]');
     if (unitSelect.length > 0) {
@@ -134,6 +150,7 @@ function resetFormUser() {
     document.getElementById('methodUser').value = 'POST';
     document.getElementById('formUser').reset();
     document.getElementById('formUser').action = '{{ route("master.users.store") }}';
+    document.getElementById('isActiveUser').checked = true;
     
     const passwordField = document.getElementById('passwordUser');
     passwordField.placeholder = 'Min 8 karakter';
@@ -179,8 +196,50 @@ function resetUserPassword(userId) {
 }
 
 // ───────────────────────────────────────────────────────
-//  UNIT PT FUNCTIONS
+//  KOMPONEN GAJI FUNCTIONS
 // ───────────────────────────────────────────────────────
+function resetFormKG() {
+    document.getElementById('methodKG').value = 'POST';
+    document.getElementById('formKG').reset();
+    document.getElementById('formKG').action = '{{ route("master.komponen-gaji.store") }}';
+    document.getElementById('btnKG').textContent = 'Simpan';
+}
+
+function editKomponenGaji(data) {
+    document.getElementById('methodKG').value = 'PUT';
+    document.getElementById('idKG').value = data.id;
+    document.getElementById('golonganKG').value = data.id_golongan || '';
+    document.getElementById('uangMakanKG').value = data.uang_makan || '';
+    document.getElementById('uangTransportKG').value = data.uang_transport || '';
+    document.getElementById('tunjanganKG').value = data.tunjangan_lain || '';
+    document.getElementById('berlakuKG').value = data.berlaku_mulai || '';
+    
+    document.getElementById('formKG').action = `/master/komponen-gaji/${data.id}`;
+    document.getElementById('btnKG').textContent = 'Simpan Perubahan';
+}
+
+// ───────────────────────────────────────────────────────
+//  UNIT PT FUNCTIONS - EDIT
+// ───────────────────────────────────────────────────────
+function resetFormUnitPt() {
+    document.getElementById('methodUnitPt').value = 'POST';
+    document.getElementById('formUnitPt').reset();
+    document.getElementById('formUnitPt').action = '{{ route("master.unit-pt.store") }}';
+    document.getElementById('btnUnitPt').textContent = 'Simpan';
+}
+
+function editUnitPt(data) {
+    document.getElementById('methodUnitPt').value = 'PUT';
+    document.getElementById('idUnitPt').value = data.id;
+    document.getElementById('kodeUnitPt').value = data.kode_unit || '';
+    document.getElementById('namaPt').value = data.nama_pt || '';
+    document.getElementById('lokasiPt').value = data.lokasi || '';
+    document.getElementById('isActiveUnit').checked = data.is_active ?? true;
+    
+    document.getElementById('formUnitPt').action = `/master/unit-pt/${data.id}`;
+    document.getElementById('btnUnitPt').textContent = 'Simpan Perubahan';
+}
+
 function deleteUnitPt(id) {
     if (confirm('Yakin ingin nonaktifkan unit/PT ini?')) {
         const form = document.createElement('form');

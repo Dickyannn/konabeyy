@@ -1,0 +1,85 @@
+REPLACE THIS SECTION IN resources/views/personal-admin/dashboard.blade.php
+FIND: <div id="struktur-list" class="tab-pane active">
+UNTIL: </div> (end of struktur-form tab-pane)
+
+WITH:
+
+                <div id="struktur-list" class="tab-pane active">
+                    <div class="search-bar">
+                        <div class="search-input-wrap">
+                            <i class="bi bi-search"></i>
+                            <input type="text" class="form-control" placeholder="Cari nama atau departemen...">
+                        </div>
+                        <button class="btn-primary-hrms" onclick="switchTabById('struktur-form');resetPosisiForm()"><i class="bi bi-plus-lg"></i> Tambah</button>
+                    </div>
+                    <div class="table-responsive">
+                        <table class="table table-hrms table-borderless">
+                            <thead><tr><th>Karyawan</th><th>Jabatan</th><th>Atasan Langsung</th><th>Cost Center</th><th>Unit</th><th>Aksi</th></tr></thead>
+                            <tbody>
+                                @forelse($positions as $position)
+                                <tr>
+                                    <td><strong>{{ $position->karyawan->nama_karyawan }}</strong></td>
+                                    <td>{{ $position->nama_jabatan }}</td>
+                                    <td><span class="text-muted" style="font-size:.78rem;">{{ $position->karyawan->atasan?->nama_karyawan ?? '— (Top Level)' }}</span></td>
+                                    <td>{{ $position->costCenter->nama_cc }}</td>
+                                    <td>{{ $position->karyawan->unit->nama_pt }}</td>
+                                    <td>
+                                        <div class="d-flex gap-1">
+                                            <button class="btn-sm-action btn-edit" onclick="editPosisi({{ $position->id }})">
+                                                <i class="bi bi-pencil"></i>
+                                            </button>
+                                            <form action="{{ route('personal-admin.posisi.destroy', $position) }}" method="POST" style="display:inline;">
+                                                @csrf
+                                                @method('DELETE')
+                                                <button type="submit" class="btn-sm-action btn-del" onclick="return confirm('Yakin ingin menonaktifkan posisi ini?')">
+                                                    <i class="bi bi-trash"></i>
+                                                </button>
+                                            </form>
+                                        </div>
+                                    </td>
+                                </tr>
+                                @empty
+                                <tr><td colspan="6" class="text-center py-4 text-muted">Tidak ada data posisi</td></tr>
+                                @endforelse
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <div id="struktur-form" class="tab-pane">
+                    <form action="{{ route('personal-admin.posisi.store') }}" method="POST">
+                        @csrf
+                        <div class="row g-3">
+                            <div class="col-sm-6">
+                                <label class="form-label">Karyawan <span class="text-danger">*</span></label>
+                                <select name="id_karyawan" class="form-select" required>
+                                    <option value="">-- Pilih Karyawan --</option>
+                                    @foreach($karyawans as $k)
+                                        <option value="{{ $k->id }}">{{ $k->nama_karyawan }}</option>
+                                    @endforeach
+                                </select>
+                            </div>
+                            <div class="col-sm-6">
+                                <label class="form-label">Jabatan <span class="text-danger">*</span></label>
+                                <input type="text" name="nama_jabatan" class="form-control" placeholder="Manager Produksi" required>
+                            </div>
+                            <div class="col-sm-6">
+                                <label class="form-label">Cost Center <span class="text-danger">*</span></label>
+                                <select name="id_cost_center" class="form-select" required>
+                                    <option value="">-- Pilih Cost Center --</option>
+                                    @foreach($costCenters as $cc)
+                                        <option value="{{ $cc->id }}">{{ $cc->nama_cc }}</option>
+                                    @endforeach
+                                </select>
+                            </div>
+                            <div class="col-sm-6">
+                                <label class="form-label">Tanggal Mulai <span class="text-danger">*</span></label>
+                                <input type="date" name="tanggal_mulai" class="form-control" required>
+                            </div>
+                        </div>
+                        <div class="d-flex gap-2 mt-4">
+                            <button type="submit" class="btn-primary-hrms"><i class="bi bi-check-lg"></i> Simpan</button>
+                            <button type="button" class="btn-outline-hrms" onclick="switchTabById('struktur-list');resetPosisiForm()">Batal</button>
+                        </div>
+                    </form>
+                </div>

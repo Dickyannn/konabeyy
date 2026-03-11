@@ -32,7 +32,7 @@ class MasterDashboardController extends Controller
                                     ->whereYear('created_at', now()->year)
                                     ->count(),
 
-            // Data untuk modal-modal CRUD
+            // Data untuk modal-modal CRUD (tampilkan semua, baik aktif maupun nonaktif)
             'golongans'       => Golongan::orderBy('kode_golongan')->get(),
             'carAllowances'   => CarAllowance::with('golongan')
                                     ->whereNull('berlaku_selesai')
@@ -56,7 +56,7 @@ class MasterDashboardController extends Controller
     public function golonganStore(Request $request)
     {
         $data = $request->validate([
-            'kode_golongan' => 'required|string|max:20|unique:master.golongan,kode_golongan',
+            'kode_golongan' => 'required|string|max:20|unique:master_golongan,kode_golongan',
             'nama_golongan' => 'required|string|max:100',
             'gaji_pokok_min'=> 'nullable|numeric|min:0',
             'gaji_pokok_max'=> 'nullable|numeric|min:0',
@@ -70,14 +70,17 @@ class MasterDashboardController extends Controller
     public function golonganUpdate(Request $request, Golongan $golongan)
     {
         $data = $request->validate([
-            'kode_golongan' => 'required|string|max:20|unique:master.golongan,kode_golongan,'.$golongan->id,
+            'kode_golongan' => 'required|string|max:20|unique:master_golongan,kode_golongan,'.$golongan->id,
             'nama_golongan' => 'required|string|max:100',
             'gaji_pokok_min'=> 'nullable|numeric|min:0',
             'gaji_pokok_max'=> 'nullable|numeric|min:0',
             'deskripsi'     => 'nullable|string|max:200',
+            'is_active'     => 'boolean',
         ]);
 
-        $golongan->update($data);
+        $golongan->update(array_merge($data, [
+            'is_active' => $request->boolean('is_active', true),
+        ]));
         return back()->with('success', 'Golongan berhasil diupdate.');
     }
 
@@ -95,7 +98,7 @@ class MasterDashboardController extends Controller
     public function carAllowanceStore(Request $request)
     {
         $data = $request->validate([
-            'id_golongan'  => 'required|integer|exists:master.golongan,id',
+            'id_golongan'  => 'required|integer|exists:master_golongan,id',
             'nominal'      => 'required|numeric|min:0',
             'berlaku_mulai'=> 'required|date',
         ]);
@@ -103,15 +106,27 @@ class MasterDashboardController extends Controller
         // Tutup record lama golongan yang sama
         CarAllowance::where('id_golongan', $data['id_golongan'])
             ->whereNull('berlaku_selesai')
-            ->update(['berlaku_selesai' => now()->subDay()]);
+            ->update(['berlaku_selesai' => now()->subDay()->toDateString()]);
 
         CarAllowance::create($data);
         return back()->with('success', 'Car allowance disimpan.');
     }
 
+    public function carAllowanceUpdate(Request $request, CarAllowance $carAllowance)
+    {
+        $data = $request->validate([
+            'id_golongan'  => 'required|integer|exists:master_golongan,id',
+            'nominal'      => 'required|numeric|min:0',
+            'berlaku_mulai'=> 'required|date',
+        ]);
+
+        $carAllowance->update($data);
+        return back()->with('success', 'Car allowance berhasil diupdate.');
+    }
+
     public function carAllowanceDestroy(CarAllowance $carAllowance)
     {
-        $carAllowance->update(['berlaku_selesai' => now()]);
+        $carAllowance->update(['berlaku_selesai' => now()->toDateString()]);
         return back()->with('success', 'Car allowance dinonaktifkan.');
     }
 
@@ -149,7 +164,7 @@ class MasterDashboardController extends Controller
     public function komponenGajiStore(Request $request)
     {
         $data = $request->validate([
-            'id_golongan'   => 'required|integer|exists:master.golongan,id',
+            'id_golongan'   => 'required|integer|exists:master_golongan,id',
             'uang_makan'    => 'nullable|numeric|min:0',
             'uang_transport'=> 'nullable|numeric|min:0',
             'tunjangan_lain'=> 'nullable|numeric|min:0',
@@ -159,10 +174,30 @@ class MasterDashboardController extends Controller
         // Tutup record lama
         KomponenTunjangan::where('id_golongan', $data['id_golongan'])
             ->whereNull('berlaku_selesai')
-            ->update(['berlaku_selesai' => now()->subDay()]);
+            ->update(['berlaku_selesai' => now()->subDay()->toDateString()]);
 
         KomponenTunjangan::create($data);
         return back()->with('success', 'Komponen gaji disimpan.');
+    }
+
+    public function komponenGajiUpdate(Request $request, KomponenTunjangan $komponenGaji)
+    {
+        $data = $request->validate([
+            'id_golongan'   => 'required|integer|exists:master_golongan,id',
+            'uang_makan'    => 'nullable|numeric|min:0',
+            'uang_transport'=> 'nullable|numeric|min:0',
+            'tunjangan_lain'=> 'nullable|numeric|min:0',
+            'berlaku_mulai' => 'required|date',
+        ]);
+
+        $komponenGaji->update($data);
+        return back()->with('success', 'Komponen gaji berhasil diupdate.');
+    }
+
+    public function komponenGajiDestroy(KomponenTunjangan $komponenGaji)
+    {
+        $komponenGaji->update(['is_active' => false]);
+        return back()->with('success', 'Komponen gaji berhasil dihapus.');
     }
 
     // ══════════════════════════════════════════════════════
@@ -176,12 +211,12 @@ class MasterDashboardController extends Controller
     public function unitPtStore(Request $request)
     {
         $data = $request->validate([
-            'kode_unit'    => 'required|string|max:20|unique:master.unit_pt,kode_unit',
+            'kode_unit'    => 'required|string|max:20|unique:master_unit_pt,kode_unit',
             'nama_pt'      => 'required|string|max:100',
             'lokasi'       => 'nullable|string|max:100',
             'is_active'    => 'boolean',
-            'cost_centers' => 'nullable|array',
-            'cost_centers.*'=> 'nullable|string|max:100',
+            'cost_centers' => 'required|array|min:1',
+            'cost_centers.*'=> 'required|string|max:100',
         ]);
 
         $unit = UnitPt::create([
@@ -196,10 +231,24 @@ class MasterDashboardController extends Controller
             $unit->costCenters()->create([
                 'kode_cc' => strtoupper($cc),
                 'nama_cc' => $cc,
+                'is_active' => true,
             ]);
         }
 
         return back()->with('success', 'Unit/PT berhasil ditambahkan.');
+    }
+
+    public function unitPtUpdate(Request $request, UnitPt $unitPt)
+    {
+        $data = $request->validate([
+            'kode_unit' => 'required|string|max:20|unique:master_unit_pt,kode_unit,'.$unitPt->id,
+            'nama_pt'   => 'required|string|max:100',
+            'lokasi'    => 'nullable|string|max:100',
+            'is_active' => 'boolean',
+        ]);
+
+        $unitPt->update($data);
+        return back()->with('success', 'Unit/PT berhasil diupdate.');
     }
 
     public function unitPtDestroy(UnitPt $unitPt)
@@ -217,7 +266,7 @@ class MasterDashboardController extends Controller
     'nama'      => 'required|string|max:100',
     'email'     => 'required|email|max:100|unique:auth_users,email',
     'id_role'   => 'required|integer|exists:auth_roles,id',
-    'id_unit'   => 'nullable|integer|exists:master.unit_pt,id',
+    'id_unit'   => 'nullable|integer|exists:master_unit_pt,id',
     'password'  => 'required|string|min:6|confirmed',
 ]);
 
@@ -239,8 +288,9 @@ class MasterDashboardController extends Controller
     'nama'    => 'required|string|max:100',
     'email'   => 'required|email|max:100|unique:auth_users,email,' . $user->id,
     'id_role' => 'required|integer|exists:auth_roles,id',
-    'id_unit' => 'nullable|integer|exists:master.unit_pt,id',
+    'id_unit' => 'nullable|integer|exists:master_unit_pt,id',
     'password'=> 'nullable|string|min:6|confirmed',
+    'is_active' => 'boolean',
 ]);
 
         $user->update([
@@ -248,6 +298,7 @@ class MasterDashboardController extends Controller
             'email'   => $data['email'],
             'id_role' => $data['id_role'],
             'id_unit' => $data['id_unit'] ?? null,
+            'is_active' => $request->boolean('is_active', true),
         ]);
 
         if (!empty($data['password']) && !empty($data['password'])) {

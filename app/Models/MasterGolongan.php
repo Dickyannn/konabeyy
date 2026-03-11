@@ -1,55 +1,18 @@
-<?php<?php
+<?php
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-}    ];        'is_active',        'deskripsi',        'gaji_pokok_max',        'gaji_pokok_min',        'nama_golongan',        'kode_golongan',    protected $fillable = [     */     * @var list<string>     *     * The attributes that are mass assignable.    /**    protected $table = 'master_golongan';     */     * Table name untuk master_golongan    /**    use HasFactory;{class MasterGolongan extends Modeluse Illuminate\Database\Eloquent\Model;use Illuminate\Database\Eloquent\Factories\HasFactory;namespace App\Models;
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
-class MasterStatusKawin extends Model
+class MasterGolongan extends Model
 {
     use HasFactory;
 
     /**
-     * Table name untuk master_status_kawin
+     * Table name untuk master_golongan
      */
-    protected $table = 'master_status_kawin';
-
-    /**
-     * Timestamps: hanya created_at
-     */
-    public $timestamps = false;
-    const CREATED_AT = 'created_at';
-    const UPDATED_AT = null;
+    protected $table = 'master_golongan';
 
     /**
      * The attributes that are mass assignable.
@@ -57,7 +20,12 @@ class MasterStatusKawin extends Model
      * @var list<string>
      */
     protected $fillable = [
-        'kode_status',
+        'kode_golongan',
+        'nama_golongan',
+        'gaji_pokok_min',
+        'gaji_pokok_max',
         'deskripsi',
+        'is_active',
     ];
 }
+

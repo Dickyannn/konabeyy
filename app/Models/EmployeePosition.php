@@ -36,6 +36,12 @@ class EmployeePosition extends Model
         'is_current',
     ];
 
+    protected $casts = [
+        'tanggal_mulai' => 'datetime',
+        'tanggal_selesai' => 'datetime',
+        'is_current' => 'boolean',
+    ];
+
     /**
      * Get the karyawan
      */

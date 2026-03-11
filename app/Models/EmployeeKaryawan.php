@@ -6,6 +6,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 
 class EmployeeKaryawan extends Model
 {
@@ -42,6 +43,13 @@ class EmployeeKaryawan extends Model
         'id_atasan',
         'foto_path',
         'is_active',
+    ];
+
+    protected $casts = [
+        'tanggal_lahir' => 'datetime',
+        'tanggal_masuk' => 'datetime',
+        'tanggal_keluar' => 'datetime',
+        'is_active' => 'boolean',
     ];
 
     /**
@@ -105,7 +113,7 @@ class EmployeeKaryawan extends Model
      */
     public function currentPosition()
     {
-        return $this->positions()->where('is_current', true)->first();
+        return $this->hasOne(EmployeePosition::class, 'id_karyawan')->where('is_current', true);
     }
 
     /**
