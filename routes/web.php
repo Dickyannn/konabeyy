@@ -5,6 +5,7 @@ use App\Http\Controllers\Master\MasterDashboardController;
 use App\Http\Controllers\PersonalAdmin\PersonalAdminController;
 use App\Http\Controllers\ProfileController;
 use Illuminate\Support\Facades\Route;
+use Illuminate\Support\Facades\Auth;
 
 /**
  * ── PUBLIC ROUTES ────────────────────────────────────
@@ -12,6 +13,23 @@ use Illuminate\Support\Facades\Route;
  */
 
 Route::get('/', function () {
+    if (Auth::check()) {
+        // Jika sudah login, redirect sesuai role
+        $user = Auth::user();
+        $user->load('role');
+        $roleCode = $user->role->kode_role ?? null;
+        
+        switch ($roleCode) {
+            case 'master_system':
+                return redirect()->route('master.dashboard');
+            case 'personal_admin':
+                return redirect()->route('personal-admin.dashboard');
+            case 'payroll':
+                return redirect()->route('payroll.dashboard');
+            default:
+                return redirect()->route('login');
+        }
+    }
     return redirect('/login');
 })->name('home');
 
@@ -37,9 +55,22 @@ Route::middleware('guest')->group(function () {
  * Hanya untuk user yang sudah login
  */
 Route::middleware('auth')->group(function () {
-    // Dashboard - fallback untuk roles lainnya
+    // Dashboard - fallback redirect sesuai role
     Route::get('/dashboard', function () {
-        return redirect('/master/dashboard');
+        $user = Auth::user();
+        $user->load('role');
+        $roleCode = $user->role->kode_role ?? null;
+        
+        switch ($roleCode) {
+            case 'master_system':
+                return redirect()->route('master.dashboard');
+            case 'personal_admin':
+                return redirect()->route('personal-admin.dashboard');
+            case 'payroll':
+                return redirect()->route('payroll.dashboard');
+            default:
+                return redirect()->route('login');
+        }
     })->name('dashboard');
 
     // Profile
@@ -123,3 +154,34 @@ Route::middleware(['auth', 'role:personal_admin'])->prefix('personal-admin')->na
     Route::delete('/riwayat/{riwayat}', [PersonalAdminController::class, 'riwayatDestroy'])->name('riwayat.destroy');
 });
 
+
+/**
+ * ── PAYROLL ROUTES ───────────────────────────────────
+ * Payroll & BPJS Management
+ */
+Route::middleware(['auth', 'role:payroll'])->prefix('payroll')->name('payroll.')->group(function () {
+    // Dashboard utama
+    Route::get('/dashboard', [\App\Http\Controllers\Payroll\PayrollController::class, 'index'])->name('dashboard');
+
+    // Penggajian
+    Route::post('/penggajian/proses',   [\App\Http\Controllers\Payroll\PayrollController::class, 'penggajianProses'])  ->name('penggajian.proses');
+    Route::post('/penggajian/approve',  [\App\Http\Controllers\Payroll\PayrollController::class, 'penggajianApprove']) ->name('penggajian.approve');
+
+    // THR
+    Route::post  ('/thr/hitung',       [\App\Http\Controllers\Payroll\PayrollController::class, 'thrHitung'])  ->name('thr.hitung');
+    Route::post  ('/thr/{thr}/bayar',  [\App\Http\Controllers\Payroll\PayrollController::class, 'thrBayar'])   ->name('thr.bayar');
+    Route::delete('/thr/{thr}',        [\App\Http\Controllers\Payroll\PayrollController::class, 'thrDestroy']) ->name('thr.destroy');
+
+    // Insentif
+    Route::post  ('/insentif',           [\App\Http\Controllers\Payroll\PayrollController::class, 'insentifStore'])   ->name('insentif.store');
+    Route::put   ('/insentif/{insentif}',[\App\Http\Controllers\Payroll\PayrollController::class, 'insentifUpdate'])  ->name('insentif.update');
+    Route::delete('/insentif/{insentif}',[\App\Http\Controllers\Payroll\PayrollController::class, 'insentifDestroy']) ->name('insentif.destroy');
+
+    // BPJS Ketenagakerjaan
+    Route::post  ('/bpjs-tk/generate',  [\App\Http\Controllers\Payroll\PayrollController::class, 'bpjsTkGenerate']) ->name('bpjs-tk.generate');
+    Route::delete('/bpjs-tk/{bpjsTk}',  [\App\Http\Controllers\Payroll\PayrollController::class, 'bpjsTkDestroy'])  ->name('bpjs-tk.destroy');
+
+    // BPJS Kesehatan
+    Route::post  ('/bpjs-kes/generate',         [\App\Http\Controllers\Payroll\PayrollController::class, 'bpjsKesGenerate']) ->name('bpjs-kes.generate');
+    Route::delete('/bpjs-kes/{bpjsKesehatan}',  [\App\Http\Controllers\Payroll\PayrollController::class, 'bpjsKesDestroy'])  ->name('bpjs-kes.destroy');
+});

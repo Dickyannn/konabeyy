@@ -116,8 +116,8 @@ class AuthController extends Controller
                 return redirect()->route('master.dashboard');
             case 'personal_admin':
                 return redirect()->route('personal-admin.dashboard');
-            case 'payroll_admin':
-                return redirect()->route('dashboard');
+            case 'payroll':
+                return redirect()->route('payroll.dashboard');
             case 'personalia':
                 return redirect()->route('dashboard');
             default:
