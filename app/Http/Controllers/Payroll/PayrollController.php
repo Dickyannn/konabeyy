@@ -7,6 +7,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Auth\AuditLog;
 use App\Models\Bpjs\{BpjsTk, BpjsKesehatan};
 use App\Models\EmployeeKaryawan;
+use App\Models\EmployeeFasilitasKendaraan;
 use App\Models\Master\{CostCenter, Golongan, ParameterBpjs, UnitPt};
 use App\Models\Payroll\{Insentif, PayrollDetail, PayrollRecord, Thr};
 use Carbon\Carbon;
@@ -34,52 +35,92 @@ class PayrollController extends Controller
     //  DASHBOARD — GET /payroll/dashboard
     // ─────────────────────────────────────────────────────
     public function index()
-    {
-        try {
-            $bulan = now()->month;
-            $tahun = now()->year;
-            
-            // Simple data untuk test
-            return view('payroll.dashboard', [
-                'bulan' => $bulan,
-                'tahun' => $tahun,
-                'bulanLabel' => Carbon::create($tahun, $bulan, 1)->translatedFormat('F Y'),
-                
-                // Stat cards - hardcoded untuk test
-                'totalGajiBulanIni' => 'Rp 0',
-                'jmlKaryawanGajian' => 0,
-                'thrTerbayar' => 'Rp 0',
-                'bpjsTkBulanIni' => 'Rp 0',
-                'bpjsKesBulanIni' => 'Rp 0',
-                
-                // Alert flags
-                'adaDraft' => false,
-                'sudahApproved' => false,
-                'deadlineBpjs' => true,
-                
-                // Empty collections untuk test
-                'payrolls' => collect(),
-                'thrs' => collect(),
-                'insentifs' => collect(),
-                'bpjsTks' => collect(),
-                'bpjsKess' => collect(),
-                
-                // Empty options
-                'karyawans' => collect(),
-                'golongans' => collect(),
-                'costCenters' => collect(),
-                'paramBpjs' => null,
-                
-                // Flags
-                'thrSudahAda' => false,
-                'bpjsTkSudahAda' => false,
-                'bpjsKesSudahAda' => false,
-            ]);
-        } catch (\Exception $e) {
-            \Log::error('Payroll Dashboard Error: ' . $e->getMessage());
-            return response()->view('errors.500', [], 500);
+        {
+            try {
+                $bulan = now()->month;
+                $tahun = now()->year;
+
+                // Load parameter BPJS aktif
+                $paramBpjs = ParameterBpjs::whereNull('berlaku_selesai')->first();
+
+                // Load data karyawan aktif
+                $karyawans = EmployeeKaryawan::where('is_active', true)
+                    ->with(['golongan', 'unit'])
+                    ->orderBy('nama_karyawan')
+                    ->get(['id', 'nip', 'nama_karyawan']);
+
+                // Load payroll data untuk bulan ini
+                $payrolls = PayrollRecord::with(['karyawan.golongan', 'karyawan.unit'])
+                    ->where('bulan', $bulan)
+                    ->where('tahun', $tahun)
+                    ->orderBy('id')
+                    ->get();
+
+                // Filter karyawan yang belum diproses untuk form input
+                $processedKaryawanIds = $payrolls->pluck('id_karyawan')->toArray();
+                $karyawansBelumDiproses = $karyawans->whereNotIn('id', $processedKaryawanIds);
+
+                // Hitung total karyawan aktif
+                $totalKaryawanAktif = $karyawans->count();
+
+                // Hitung status payroll
+                $payrollDraft = $payrolls->where('status', 'draft');
+                $payrollApproved = $payrolls->whereIn('status', ['approved', 'paid']);
+
+                // Logic untuk menentukan status:
+                // - adaDraft: ada record dengan status draft
+                // - sudahApproved: SEMUA karyawan sudah diproses dan di-approve
+                // - semuaKaryawanSudahDiproses: jumlah payroll record = jumlah karyawan aktif
+                $adaDraft = $payrollDraft->count() > 0;
+                $semuaKaryawanSudahDiproses = $payrolls->count() >= $totalKaryawanAktif;
+                $sudahApproved = $semuaKaryawanSudahDiproses && $payrollApproved->count() >= $totalKaryawanAktif;
+
+                return view('payroll.dashboard', [
+                    'bulan' => $bulan,
+                    'tahun' => $tahun,
+                    'bulanLabel' => Carbon::create($tahun, $bulan, 1)->translatedFormat('F Y'),
+
+                    // Stat cards - calculate from actual data
+                    'totalGajiBulanIni' => $this->rp((float) $payrollApproved->sum('total_income')),
+                    'jmlKaryawanGajian' => $payrollApproved->count(),
+                    'thrTerbayar' => 'Rp 0', // Will implement later
+                    'bpjsTkBulanIni' => 'Rp 0', // Will implement later
+                    'bpjsKesBulanIni' => 'Rp 0', // Will implement later
+
+                    // Alert flags
+                    'adaDraft' => $adaDraft,
+                    'sudahApproved' => $sudahApproved,
+                    'semuaKaryawanSudahDiproses' => $semuaKaryawanSudahDiproses,
+                    'deadlineBpjs' => now()->day <= 14,
+
+                    // Data collections
+                    'payrolls' => $payrolls,
+                    'thrs' => collect(), // Empty for now
+                    'insentifs' => collect(), // Empty for now
+                    'bpjsTks' => collect(), // Empty for now
+                    'bpjsKess' => collect(), // Empty for now
+
+                    // Dropdown options
+                    'karyawans' => $karyawans,
+                    'karyawansBelumDiproses' => $karyawansBelumDiproses,
+                    'golongans' => Golongan::where('is_active', true)->orderBy('kode_golongan')->get(),
+                    'costCenters' => CostCenter::where('is_active', true)->orderBy('nama_cc')->get(),
+                    'paramBpjs' => $paramBpjs,
+
+                    // Additional info
+                    'totalKaryawanAktif' => $totalKaryawanAktif,
+                    'jumlahSudahDiproses' => $payrolls->count(),
+
+                    // Flags
+                    'thrSudahAda' => false,
+                    'bpjsTkSudahAda' => false,
+                    'bpjsKesSudahAda' => false,
+                ]);
+            } catch (\Exception $e) {
+                \Log::error('Payroll Dashboard Error: ' . $e->getMessage());
+                return response()->view('errors.500', [], 500);
+            }
         }
-    }
 
     // ─────────────────────────────────────────────────────
     //  PENGGAJIAN: Generate slip gaji
@@ -90,70 +131,139 @@ class PayrollController extends Controller
         $req = $request->validate([
             'bulan' => 'required|integer|min:1|max:12',
             'tahun' => 'required|integer|min:2020',
+            'karyawan' => 'required|array',
+            'karyawan.*.id' => 'required|integer|exists:employee_karyawan,id',
+            'karyawan.*.gaji_pokok' => 'required|numeric|min:0',
+            'karyawan.*.hari_wfo' => 'required|integer|min:0|max:31',
+            'karyawan.*.hari_wfh' => 'required|integer|min:0|max:31',
+            'karyawan.*.uang_makan' => 'required|numeric|min:0',
+            'karyawan.*.uang_transport' => 'required|numeric|min:0',
+            'karyawan.*.car_allowance' => 'required|numeric|min:0',
+            'karyawan.*.total_income' => 'required|numeric|min:0',
+            'karyawan.*.potongan_bpjs' => 'required|numeric|min:0',
+            'karyawan.*.take_home_pay' => 'required|numeric|min:0',
         ]);
 
         if (PayrollRecord::where('bulan', $req['bulan'])->where('tahun', $req['tahun'])->exists()) {
             return back()->with('error', "Penggajian {$req['bulan']}/{$req['tahun']} sudah pernah diproses.");
         }
 
-        $param = ParameterBpjs::aktif();
+        $param = ParameterBpjs::whereNull('berlaku_selesai')->first();
         if (!$param) {
             return back()->with('error', 'Parameter BPJS belum dikonfigurasi di Master System.');
         }
 
         DB::transaction(function () use ($req, $param) {
-            Karyawan::aktif()->with(['golongan', 'fasilitas'])->chunk(50, function ($list) use ($req, $param) {
-                foreach ($list as $k) {
-                    // basic_salary dari gaji_min golongan
-                    $basicSalary = (float) ($k->golongan->gaji_min ?? 0);
+            foreach ($req['karyawan'] as $karyawanData) {
+                // Create payroll record
+                $rec = PayrollRecord::create([
+                    'id_karyawan'     => $karyawanData['id'],
+                    'bulan'           => $req['bulan'],
+                    'tahun'           => $req['tahun'],
+                    'basic_salary'    => $karyawanData['gaji_pokok'],
+                    'total_income'    => $karyawanData['total_income'],
+                    'total_deduction' => $karyawanData['potongan_bpjs'],
+                    'status'          => 'draft',
+                    'created_by'      => auth()->user()->nama ?? 'system',
+                ]);
 
-                    // Cek apakah punya Car Allowance
-                    $carAllow = 0;
-                    if ($k->fasilitas && $k->fasilitas->jenis_fasilitas === 'Car Allowance') {
-                        $carAllow = (float) ($k->fasilitas->nominal_allowance ?? 0);
-                    }
-
-                    // total_income = basic + tunjangan
-                    $totalIncome = $basicSalary + $carAllow;
-
-                    // total_deduction = potongan JHT + JP + BPJS Kes karyawan
-                    $potJht   = round($basicSalary * ($param->jht_karyawan_pct / 100), 2);
-                    $potJp    = round($basicSalary * ($param->jp_karyawan_pct  / 100), 2);
-                    $potBpjsK = round($basicSalary * ($param->bpjs_kes_karyawan_pct / 100), 2);
-                    $totalDed = $potJht + $potJp + $potBpjsK;
-
-                    $rec = PayrollRecord::create([
-                        'id_karyawan'     => $k->id,
-                        'bulan'           => $req['bulan'],
-                        'tahun'           => $req['tahun'],
-                        'basic_salary'    => $basicSalary,
-                        'total_income'    => $totalIncome,
-                        'total_deduction' => $totalDed,
-                        // take_home_pay = GENERATED COLUMN, jangan diisi
-                        'status'          => 'draft',
-                        'created_by'      => auth()->user()->nama,
-                    ]);
-
-                    // Insert detail komponen ke payroll.payroll_detail
-                    $details = [
-                        ['id_payroll' => $rec->id, 'id_component' => 1, 'amount' => $basicSalary, 'keterangan' => 'Gaji Pokok'],
+                // Insert detail komponen
+                $details = [];
+                
+                // Gaji Pokok
+                if ($karyawanData['gaji_pokok'] > 0) {
+                    $details[] = [
+                        'id_payroll' => $rec->id, 
+                        'id_component' => 1, 
+                        'amount' => $karyawanData['gaji_pokok'], 
+                        'keterangan' => 'Gaji Pokok'
                     ];
-                    if ($carAllow > 0) {
-                        $details[] = ['id_payroll' => $rec->id, 'id_component' => 2, 'amount' => $carAllow, 'keterangan' => 'Car Allowance'];
-                    }
+                }
+                
+                // Uang Makan
+                if ($karyawanData['uang_makan'] > 0) {
+                    $totalHari = $karyawanData['hari_wfo'] + $karyawanData['hari_wfh'];
+                    $details[] = [
+                        'id_payroll' => $rec->id, 
+                        'id_component' => 2, 
+                        'amount' => $karyawanData['uang_makan'], 
+                        'keterangan' => "Uang Makan ({$totalHari} hari)"
+                    ];
+                }
+                
+                // Uang Transport
+                if ($karyawanData['uang_transport'] > 0) {
+                    $details[] = [
+                        'id_payroll' => $rec->id, 
+                        'id_component' => 3, 
+                        'amount' => $karyawanData['uang_transport'], 
+                        'keterangan' => "Uang Transport WFO ({$karyawanData['hari_wfo']} hari)"
+                    ];
+                }
+                
+                // Car Allowance
+                if ($karyawanData['car_allowance'] > 0) {
+                    $details[] = [
+                        'id_payroll' => $rec->id, 
+                        'id_component' => 4, 
+                        'amount' => $karyawanData['car_allowance'], 
+                        'keterangan' => 'Car Allowance'
+                    ];
+                }
+                
+                // Potongan BPJS
+                if ($karyawanData['potongan_bpjs'] > 0) {
+                    // Hitung detail potongan
+                    $gajiPokok = $karyawanData['gaji_pokok'];
+                    $potJht = round($gajiPokok * ($param->jht_karyawan_pct / 100), 2);
+                    $potJp = round($gajiPokok * ($param->jp_karyawan_pct / 100), 2);
+                    $potBpjsKes = round($gajiPokok * ($param->bpjs_kes_karyawan_pct / 100), 2);
+                    
                     if ($potJht > 0) {
-                        $details[] = ['id_payroll' => $rec->id, 'id_component' => 3, 'amount' => -$potJht, 'keterangan' => 'Potongan JHT Karyawan'];
+                        $details[] = [
+                            'id_payroll' => $rec->id, 
+                            'id_component' => 5, 
+                            'amount' => -$potJht, 
+                            'keterangan' => "Potongan JHT ({$param->jht_karyawan_pct}%)"
+                        ];
                     }
-                    if ($potBpjsK > 0) {
-                        $details[] = ['id_payroll' => $rec->id, 'id_component' => 4, 'amount' => -$potBpjsK, 'keterangan' => 'Potongan BPJS Kesehatan'];
+                    
+                    if ($potJp > 0) {
+                        $details[] = [
+                            'id_payroll' => $rec->id, 
+                            'id_component' => 6, 
+                            'amount' => -$potJp, 
+                            'keterangan' => "Potongan JP ({$param->jp_karyawan_pct}%)"
+                        ];
                     }
+                    
+                    if ($potBpjsKes > 0) {
+                        $details[] = [
+                            'id_payroll' => $rec->id, 
+                            'id_component' => 7, 
+                            'amount' => -$potBpjsKes, 
+                            'keterangan' => "Potongan BPJS Kesehatan ({$param->bpjs_kes_karyawan_pct}%)"
+                        ];
+                    }
+                }
+                
+                // Insert all details
+                if (!empty($details)) {
                     PayrollDetail::insert($details);
                 }
-            });
+            }
         });
 
-        AuditLog::catat('PROSES_PENGGAJIAN', 'payroll.payroll', null, $req);
-        return back()->with('success', "Penggajian {$req['bulan']}/{$req['tahun']} berhasil di-generate. Status: Draft.");
+        AuditLog::create([
+            'id_user' => auth()->id(),
+            'action' => 'PROSES_PENGGAJIAN_DETAIL',
+            'table_name' => 'payroll_payroll',
+            'record_id' => null,
+            'new_data' => json_encode(['bulan' => $req['bulan'], 'tahun' => $req['tahun'], 'jumlah_karyawan' => count($req['karyawan'])]),
+        ]);
+        
+        $jumlahKaryawan = count($req['karyawan']);
+        return back()->with('success', "Penggajian {$req['bulan']}/{$req['tahun']} berhasil diproses untuk {$jumlahKaryawan} karyawan dengan detail absensi. Status: Draft.");
     }
 
     // POST /payroll/penggajian/approve
@@ -166,14 +276,59 @@ class PayrollController extends Controller
             ->where('status', 'draft')
             ->update([
                 'status'      => 'approved',
-                'approved_by' => auth()->user()->nama,
+                'approved_by' => auth()->user()->nama ?? 'system',
                 'approved_at' => now(),
             ]);
 
         if (!$updated) return back()->with('error', 'Tidak ada penggajian draft yang bisa di-approve.');
 
-        AuditLog::catat('APPROVE_PENGGAJIAN', 'payroll.payroll', null, $req);
-        return back()->with('success', "Penggajian {$req['bulan']}/{$req['tahun']} berhasil di-approve.");
+        AuditLog::create([
+            'id_user' => auth()->id(),
+            'action' => 'APPROVE_PENGGAJIAN',
+            'table_name' => 'payroll_payroll',
+            'record_id' => null,
+            'new_data' => json_encode($req),
+        ]);
+        
+        return back()->with('success', "Penggajian {$req['bulan']}/{$req['tahun']} berhasil di-approve untuk {$updated} karyawan.");
+    }
+    /**
+     * Reject draft penggajian (hapus semua data draft)
+     */
+    public function penggajianReject(Request $request)
+    {
+        $request->validate([
+            'bulan' => 'required|integer|min:1|max:12',
+            'tahun' => 'required|integer|min:2020|max:2099'
+        ]);
+
+        $bulan = $request->bulan;
+        $tahun = $request->tahun;
+
+        try {
+            DB::beginTransaction();
+
+            // Hapus semua payroll record dengan status draft untuk bulan/tahun ini
+            $deleted = PayrollRecord::where('bulan', $bulan)
+                ->where('tahun', $tahun)
+                ->where('status', 'draft')
+                ->delete();
+
+            DB::commit();
+
+            if ($deleted > 0) {
+                return redirect()->route('payroll.dashboard')
+                    ->with('success', "Draft penggajian bulan {$bulan}/{$tahun} berhasil dihapus. {$deleted} record dihapus.");
+            } else {
+                return redirect()->route('payroll.dashboard')
+                    ->with('error', 'Tidak ada draft penggajian yang ditemukan untuk dihapus.');
+            }
+
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return redirect()->route('payroll.dashboard')
+                ->with('error', 'Gagal menghapus draft penggajian: ' . $e->getMessage());
+        }
     }
 
     // ─────────────────────────────────────────────────────

@@ -166,6 +166,7 @@ Route::middleware(['auth', 'role:payroll'])->prefix('payroll')->name('payroll.')
     // Penggajian
     Route::post('/penggajian/proses',   [\App\Http\Controllers\Payroll\PayrollController::class, 'penggajianProses'])  ->name('penggajian.proses');
     Route::post('/penggajian/approve',  [\App\Http\Controllers\Payroll\PayrollController::class, 'penggajianApprove']) ->name('penggajian.approve');
+    Route::post('/penggajian/reject',   [\App\Http\Controllers\Payroll\PayrollController::class, 'penggajianReject'])  ->name('penggajian.reject');
 
     // THR
     Route::post  ('/thr/hitung',       [\App\Http\Controllers\Payroll\PayrollController::class, 'thrHitung'])  ->name('thr.hitung');

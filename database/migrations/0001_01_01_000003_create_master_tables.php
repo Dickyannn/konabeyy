@@ -189,7 +189,18 @@ return new class extends Migration
 
         // Parameter BPJS
         \DB::table('master_parameter_bpjs')->insert([
-            ['berlaku_mulai' => '2024-01-01'],
+            [
+                'berlaku_mulai' => '2024-01-01',
+                'jht_perusahaan_pct' => 3.700,
+                'jp_perusahaan_pct' => 2.000,
+                'jkk_pct' => 0.240,
+                'jkm_pct' => 0.300,
+                'jht_karyawan_pct' => 2.000,
+                'jp_karyawan_pct' => 1.000,
+                'bpjs_kes_perusahaan_pct' => 4.000,
+                'bpjs_kes_karyawan_pct' => 1.000,
+                'created_by' => 'system'
+            ],
         ]);
 
         // Payroll Components

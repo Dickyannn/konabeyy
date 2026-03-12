@@ -503,7 +503,8 @@
     <div class="modal-body">
         <div class="ctabs">
             <button class="ctab active" onclick="ctab(this,'pgj-list')"><i class="bi bi-table me-1"></i>Riwayat Bulan Ini</button>
-            <button class="ctab"        onclick="ctab(this,'pgj-act')"><i class="bi bi-play-circle me-1"></i>Proses / Approve</button>
+            <button class="ctab" onclick="ctab(this,'pgj-proses')"><i class="bi bi-pencil-square me-1"></i>Input Data Penggajian</button>
+            <button class="ctab" onclick="ctab(this,'pgj-approve')"><i class="bi bi-check-circle me-1"></i>Review & Approve</button>
         </div>
 
         {{-- Tab: Riwayat --}}
@@ -570,28 +571,39 @@
             {{-- {{ $payrolls->links() }} --}}
         </div>
 
-        {{-- Tab: Proses / Approve --}}
-        <div id="pgj-act" class="ctab-pane">
+        {{-- Tab: Input Data Penggajian --}}
+        <div id="pgj-proses" class="ctab-pane">
             @if($sudahApproved)
                 <div class="alert-banner alert-ok mb-3">
                     <i class="bi bi-check-circle-fill flex-shrink-0"></i>
-                    Penggajian {{ $bulanLabel }} sudah approved. Tidak bisa diproses ulang.
+                    Penggajian {{ $bulanLabel }} sudah approved untuk semua {{ $totalKaryawanAktif }} karyawan. Tidak bisa diproses ulang.
+                </div>
+            @elseif($semuaKaryawanSudahDiproses && $adaDraft)
+                <div class="alert-banner alert-warn mb-3">
+                    <i class="bi bi-clock-fill flex-shrink-0"></i>
+                    Penggajian {{ $bulanLabel }} sudah diproses untuk semua {{ $totalKaryawanAktif }} karyawan dan dalam status <strong>Draft</strong>. 
+                    Gunakan tab "Review & Approve" untuk approve atau reject.
+                </div>
+            @elseif($adaDraft)
+                <div class="alert-banner alert-info mb-3">
+                    <i class="bi bi-info-circle-fill flex-shrink-0"></i>
+                    Penggajian {{ $bulanLabel }} sudah diproses untuk {{ $jumlahSudahDiproses }} dari {{ $totalKaryawanAktif }} karyawan. 
+                    Lanjutkan proses atau gunakan tab "Review & Approve" untuk approve yang sudah ada.
                 </div>
             @else
-                {{-- Form Generate --}}
-                @unless($adaDraft)
-                <div class="section-divider">Generate Slip Gaji</div>
+                <div class="section-divider">Input Data Penggajian</div>
                 <div class="alert-banner alert-info mb-3" style="font-size:.82rem;">
                     <i class="bi bi-info-circle-fill flex-shrink-0"></i>
-                    Proses akan generate slip gaji untuk <strong>semua karyawan aktif</strong>.
-                    Karyawan dengan <em>Car Allowance</em> tidak mendapat uang makan &amp; transport.
+                    Input data penggajian per karyawan dengan detail absensi dan komponen gaji.
                 </div>
                 @if($paramBpjs)
                 <div class="param-box mb-3">
                     <div class="param-item"><label>JHT Karyawan</label><span>{{ $paramBpjs->jht_karyawan_pct }}%</span></div>
                     <div class="param-item"><label>JP Karyawan</label><span>{{ $paramBpjs->jp_karyawan_pct }}%</span></div>
                     <div class="param-item"><label>BPJS Kes Karyawan</label><span>{{ $paramBpjs->bpjs_kes_karyawan_pct }}%</span></div>
-                    <div class="param-item"><label>Berlaku Mulai</label><span>{{ $paramBpjs->berlaku_mulai->format('d/m/Y') }}</span></div>
+                    <div class="param-item"><label>Uang Makan</label><span>Rp 25.000/hari</span></div>
+                    <div class="param-item"><label>Uang Transport</label><span>Rp 15.000/hari (WFO only)</span></div>
+                    <div class="param-item"><label>Formula</label><span>Take Home = (Gaji - BPJS) + Tunjangan</span></div>
                 </div>
                 @else
                 <div class="alert-banner alert-warn mb-3" style="font-size:.82rem;">
@@ -599,10 +611,11 @@
                     Parameter BPJS belum dikonfigurasi. Minta Master System untuk setting terlebih dahulu.
                 </div>
                 @endif
-                <form method="POST" action="{{ route('payroll.penggajian.proses') }}" onsubmit="return confirm('Proses penggajian {{ $bulanLabel }}? Tidak bisa dibatalkan.')">
+                
+                <form method="POST" action="{{ route('payroll.penggajian.proses') }}" id="payrollForm">
                     @csrf
-                    <div class="row g-3">
-                        <div class="col-sm-3">
+                    <div class="row g-3 mb-4">
+                        <div class="col-sm-6">
                             <label class="form-label">Bulan <span class="text-danger">*</span></label>
                             <select name="bulan" class="form-select" required>
                                 @for($m=1;$m<=12;$m++)
@@ -612,35 +625,373 @@
                                 @endfor
                             </select>
                         </div>
-                        <div class="col-sm-3">
+                        <div class="col-sm-6">
                             <label class="form-label">Tahun <span class="text-danger">*</span></label>
                             <input type="number" name="tahun" class="form-control" value="{{ $tahun }}" min="2020" max="2099" required>
                         </div>
                     </div>
-                    <div class="d-flex gap-2 mt-3">
+
+                    {{-- Tabel Input Karyawan --}}
+                    <div class="section-divider">Data Karyawan & Absensi</div>
+                    <div class="alert-banner alert-info mb-3" style="font-size:.75rem;">
+                        <i class="bi bi-info-circle-fill flex-shrink-0"></i>
+                        <strong>Formula:</strong> Total Income = Gaji Pokok - BPJS | Take Home Pay = Total Income + Tunjangan Kehadiran (WFO: makan+transport, WFH: makan saja)
+                    </div>
+                    <div class="table-responsive">
+                        <table class="table tbl table-borderless" id="payrollTable">
+                            <thead>
+                                <tr>
+                                    <th style="width:200px;">Karyawan</th>
+                                    <th style="width:120px;">Gaji Pokok</th>
+                                    <th style="width:80px;">WFO</th>
+                                    <th style="width:80px;">WFH</th>
+                                    <th style="width:100px;">Uang Makan<br><small style="font-weight:400;color:var(--muted);">Display Only</small></th>
+                                    <th style="width:100px;">Uang Transport<br><small style="font-weight:400;color:var(--muted);">Display Only</small></th>
+                                    <th style="width:100px;">Car Allowance</th>
+                                    <th style="width:100px;">Total Income<br><small style="font-weight:400;color:var(--muted);">Gaji - BPJS</small></th>
+                                    <th style="width:100px;">Potongan BPJS</th>
+                                    <th style="width:100px;">Take Home Pay<br><small style="font-weight:400;color:var(--muted);">+ Tunjangan</small></th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @forelse($karyawansBelumDiproses as $index => $k)
+                                <tr data-karyawan="{{ $k->id }}">
+                                    <td>
+                                        <input type="hidden" name="karyawan[{{ $index }}][id]" value="{{ $k->id }}">
+                                        <div style="font-weight:700;font-size:.82rem;">{{ $k->nama_karyawan }}</div>
+                                        <div style="font-size:.7rem;color:var(--muted);">{{ $k->nip }} • {{ $k->golongan->kode_golongan ?? '-' }}</div>
+                                    </td>
+                                    <td>
+                                        <input type="number" name="karyawan[{{ $index }}][gaji_pokok]" 
+                                               class="form-control form-control-sm gaji-pokok" 
+                                               value="{{ $k->golongan->gaji_min ?? 0 }}" 
+                                               min="0" step="1000" required
+                                               onchange="hitungTotal({{ $index }})">
+                                    </td>
+                                    <td>
+                                        <input type="number" name="karyawan[{{ $index }}][hari_wfo]" 
+                                               class="form-control form-control-sm hari-wfo" 
+                                               value="22" min="0" max="31" required
+                                               onchange="hitungTotal({{ $index }})">
+                                    </td>
+                                    <td>
+                                        <input type="number" name="karyawan[{{ $index }}][hari_wfh]" 
+                                               class="form-control form-control-sm hari-wfh" 
+                                               value="0" min="0" max="31" required
+                                               onchange="hitungTotal({{ $index }})">
+                                    </td>
+                                    <td>
+                                        <input type="number" name="karyawan[{{ $index }}][uang_makan]" 
+                                               class="form-control form-control-sm uang-makan" 
+                                               value="0" readonly style="background:#f8f9fa;">
+                                    </td>
+                                    <td>
+                                        <input type="number" name="karyawan[{{ $index }}][uang_transport]" 
+                                               class="form-control form-control-sm uang-transport" 
+                                               value="0" readonly style="background:#f8f9fa;">
+                                    </td>
+                                    <td>
+                                        @php
+                                            $carAllowance = \App\Models\EmployeeFasilitasKendaraan::where('id_karyawan', $k->id)
+                                                ->where('is_active', true)
+                                                ->where('jenis_fasilitas', 'Car Allowance')
+                                                ->first();
+                                        @endphp
+                                        <input type="number" name="karyawan[{{ $index }}][car_allowance]" 
+                                               class="form-control form-control-sm car-allowance" 
+                                               value="{{ $carAllowance->nominal_allowance ?? 0 }}" 
+                                               min="0" step="1000"
+                                               onchange="hitungTotal({{ $index }})">
+                                    </td>
+                                    <td>
+                                        <input type="number" name="karyawan[{{ $index }}][total_income]" 
+                                               class="form-control form-control-sm total-income" 
+                                               value="0" readonly style="background:#e8f5e8;font-weight:700;">
+                                    </td>
+                                    <td>
+                                        <input type="number" name="karyawan[{{ $index }}][potongan_bpjs]" 
+                                               class="form-control form-control-sm potongan-bpjs" 
+                                               value="0" readonly style="background:#fff2f2;"
+                                               title="JHT + JP + BPJS Kesehatan">
+                                        <small class="bpjs-breakdown text-muted" style="font-size:0.65rem;display:block;margin-top:2px;"></small>
+                                    </td>
+                                    <td>
+                                        <input type="number" name="karyawan[{{ $index }}][take_home_pay]" 
+                                               class="form-control form-control-sm take-home-pay" 
+                                               value="0" readonly style="background:#e8f5e8;font-weight:700;color:var(--success);">
+                                    </td>
+                                </tr>
+                                @empty
+                                <tr>
+                                    <td colspan="10" class="text-center py-4" style="color:var(--muted);">
+                                        <i class="bi bi-check-circle-fill me-2" style="font-size:1.2rem;color:var(--success);"></i>
+                                        Semua {{ $totalKaryawanAktif }} karyawan sudah diproses. Gunakan tab "Review & Approve" untuk approve.
+                                    </td>
+                                </tr>
+                                @endforelse
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <div class="d-flex gap-2 mt-4">
+                        <button type="button" class="btn-outline-hrms" onclick="hitungSemuaTotal()">
+                            <i class="bi bi-calculator"></i> Hitung Ulang Semua
+                        </button>
+                        <button type="button" class="btn-outline-hrms" onclick="testCalculation()">
+                            <i class="bi bi-bug"></i> Test Calculation
+                        </button>
                         <button type="submit" class="btn-success-hrms" {{ !$paramBpjs ? 'disabled' : '' }}>
-                            <i class="bi bi-play-circle-fill"></i> Generate Penggajian
+                            <i class="bi bi-check-lg"></i> Proses Penggajian
                         </button>
                     </div>
                 </form>
-                @endunless
 
-                {{-- Form Approve (jika sudah ada draft) --}}
-                @if($adaDraft)
-                <div class="section-divider">Approve Draft</div>
+                <script>
+                // Konstanta
+                const UANG_MAKAN_PER_HARI = 25000;
+                const UANG_TRANSPORT_PER_HARI = 15000;
+                @if($paramBpjs)
+                const JHT_KARYAWAN_PCT = {{ $paramBpjs->jht_karyawan_pct ?? 2.0 }};
+                const JP_KARYAWAN_PCT = {{ $paramBpjs->jp_karyawan_pct ?? 1.0 }};
+                const BPJS_KES_KARYAWAN_PCT = {{ $paramBpjs->bpjs_kes_karyawan_pct ?? 1.0 }};
+                console.log('BPJS Parameters loaded from database:', {
+                    jht: {{ $paramBpjs->jht_karyawan_pct ?? 0 }},
+                    jp: {{ $paramBpjs->jp_karyawan_pct ?? 0 }},
+                    bpjs_kes: {{ $paramBpjs->bpjs_kes_karyawan_pct ?? 0 }}
+                });
+                @else
+                const JHT_KARYAWAN_PCT = 2.0;
+                const JP_KARYAWAN_PCT = 1.0;
+                const BPJS_KES_KARYAWAN_PCT = 1.0;
+                console.log('BPJS Parameters using default values (no database config found)');
+                @endif
+
+                function hitungTotal(index) {
+                    const rows = document.querySelectorAll('#payrollTable tbody tr');
+                    if (index >= rows.length) return;
+                    
+                    const row = rows[index];
+                    
+                    const gajiPokok = parseFloat(row.querySelector('.gaji-pokok').value) || 0;
+                    const hariWfo = parseInt(row.querySelector('.hari-wfo').value) || 0;
+                    const hariWfh = parseInt(row.querySelector('.hari-wfh').value) || 0;
+                    const carAllowance = parseFloat(row.querySelector('.car-allowance').value) || 0;
+                    
+                    // Potongan BPJS (dari gaji pokok)
+                    const potJht = Math.round(gajiPokok * (JHT_KARYAWAN_PCT / 100));
+                    const potJp = Math.round(gajiPokok * (JP_KARYAWAN_PCT / 100));
+                    const potBpjsKes = Math.round(gajiPokok * (BPJS_KES_KARYAWAN_PCT / 100));
+                    const totalPotongan = potJht + potJp + potBpjsKes;
+                    
+                    // Total Income = Gaji Pokok - Potongan BPJS
+                    const totalIncome = gajiPokok - totalPotongan;
+                    
+                    // Hitung tunjangan berdasarkan kehadiran
+                    // WFO: dapat uang makan + uang transport
+                    // WFH: hanya dapat uang makan
+                    const tunjanganWfo = hariWfo * (UANG_MAKAN_PER_HARI + UANG_TRANSPORT_PER_HARI);
+                    const tunjanganWfh = hariWfh * UANG_MAKAN_PER_HARI;
+                    const totalTunjangan = tunjanganWfo + tunjanganWfh;
+                    
+                    // Jika ada car allowance, tidak dapat uang makan & transport, tapi dapat car allowance
+                    const finalTunjangan = carAllowance > 0 ? carAllowance : totalTunjangan;
+                    
+                    // Take Home Pay = Total Income + Tunjangan
+                    const takeHomePay = totalIncome + finalTunjangan;
+                    
+                    // Untuk display di kolom uang makan dan transport
+                    const displayUangMakan = carAllowance > 0 ? 0 : (hariWfo + hariWfh) * UANG_MAKAN_PER_HARI;
+                    const displayUangTransport = carAllowance > 0 ? 0 : hariWfo * UANG_TRANSPORT_PER_HARI;
+                    
+                    // Update fields
+                    row.querySelector('.uang-makan').value = Math.round(displayUangMakan);
+                    row.querySelector('.uang-transport').value = Math.round(displayUangTransport);
+                    row.querySelector('.total-income').value = Math.round(totalIncome);
+                    row.querySelector('.potongan-bpjs').value = Math.round(totalPotongan);
+                    row.querySelector('.take-home-pay').value = Math.round(takeHomePay);
+                    
+                    // Update BPJS breakdown
+                    const breakdownElement = row.querySelector('.bpjs-breakdown');
+                    if (breakdownElement) {
+                        breakdownElement.textContent = `JHT: ${potJht.toLocaleString()} | JP: ${potJp.toLocaleString()} | Kes: ${potBpjsKes.toLocaleString()}`;
+                    }
+                    
+                    // Debug log untuk troubleshooting
+                    console.log(`Row ${index}: Gaji=${gajiPokok}, TotalIncome=${totalIncome}, Tunjangan=${finalTunjangan}, TakeHome=${takeHomePay}`);
+                }
+
+                function hitungSemuaTotal() {
+                    const rows = document.querySelectorAll('#payrollTable tbody tr');
+                    rows.forEach((row, index) => {
+                        hitungTotal(index);
+                    });
+                }
+
+                function testCalculation() {
+                    console.log('=== TESTING NEW CALCULATION FORMULA ===');
+                    const rows = document.querySelectorAll('#payrollTable tbody tr');
+                    console.log('Found rows:', rows.length);
+                    
+                    if (rows.length > 0) {
+                        const firstRow = rows[0];
+                        console.log('First row:', firstRow);
+                        
+                        const gajiField = firstRow.querySelector('.gaji-pokok');
+                        const wfoField = firstRow.querySelector('.hari-wfo');
+                        const wfhField = firstRow.querySelector('.hari-wfh');
+                        
+                        console.log('Current values:', {
+                            gaji: gajiField?.value,
+                            wfo: wfoField?.value,
+                            wfh: wfhField?.value
+                        });
+                        
+                        // Set test values
+                        if (gajiField) gajiField.value = 5000000; // 5 juta
+                        if (wfoField) wfoField.value = 20;        // 20 hari WFO
+                        if (wfhField) wfhField.value = 2;         // 2 hari WFH
+                        
+                        console.log('Test values set - triggering calculation...');
+                        hitungTotal(0);
+                        
+                        // Show expected calculation
+                        const gaji = 5000000;
+                        const bpjs = gaji * (2 + 1 + 1) / 100; // 4% total
+                        const totalIncome = gaji - bpjs;
+                        const tunjangan = (20 * (25000 + 15000)) + (2 * 25000); // WFO + WFH
+                        const takeHome = totalIncome + tunjangan;
+                        
+                        console.log('Expected calculation:', {
+                            gaji: gaji,
+                            bpjs: bpjs,
+                            totalIncome: totalIncome,
+                            tunjangan: tunjangan,
+                            takeHome: takeHome
+                        });
+                    }
+                }
+
+                // Hitung semua saat page load
+                document.addEventListener('DOMContentLoaded', function() {
+                    console.log('DOM loaded, initializing payroll calculations...');
+                    console.log('BPJS Constants:', {
+                        JHT: JHT_KARYAWAN_PCT,
+                        JP: JP_KARYAWAN_PCT,
+                        BPJS_KES: BPJS_KES_KARYAWAN_PCT,
+                        UANG_MAKAN: UANG_MAKAN_PER_HARI,
+                        UANG_TRANSPORT: UANG_TRANSPORT_PER_HARI
+                    });
+                    hitungSemuaTotal();
+                    
+                    // Test if fields are accessible
+                    const testRow = document.querySelector('#payrollTable tbody tr');
+                    if (testRow) {
+                        console.log('Test row found:', testRow);
+                        const wfoField = testRow.querySelector('.hari-wfo');
+                        const wfhField = testRow.querySelector('.hari-wfh');
+                        console.log('WFO field:', wfoField, 'value:', wfoField?.value);
+                        console.log('WFH field:', wfhField, 'value:', wfhField?.value);
+                        
+                        // Add event listeners for testing
+                        if (wfoField) {
+                            wfoField.addEventListener('input', function() {
+                                console.log('WFO field changed to:', this.value);
+                            });
+                        }
+                        if (wfhField) {
+                            wfhField.addEventListener('input', function() {
+                                console.log('WFH field changed to:', this.value);
+                            });
+                        }
+                    }
+                });
+
+                // Form submit validation
+                document.getElementById('payrollForm').addEventListener('submit', function(e) {
+                    if (!confirm('Proses penggajian {{ $bulanLabel }}? Data yang sudah diproses tidak bisa diubah.')) {
+                        e.preventDefault();
+                    }
+                });
+                </script>
+            @endif
+        </div>
+
+        {{-- Tab: Review & Approve --}}
+        <div id="pgj-approve" class="ctab-pane">
+            @if($sudahApproved)
+                <div class="alert-banner alert-ok mb-3">
+                    <i class="bi bi-check-circle-fill flex-shrink-0"></i>
+                    Penggajian {{ $bulanLabel }} sudah approved. Tidak bisa diproses ulang.
+                </div>
+            @elseif($adaDraft)
+                <div class="section-divider">Review Draft Penggajian</div>
                 <div class="alert-banner alert-warn mb-3" style="font-size:.82rem;">
                     <i class="bi bi-clock-fill flex-shrink-0"></i>
-                    Penggajian {{ $bulanLabel }} ada dalam status <strong>Draft</strong>. Approve untuk finalisasi.
+                    Penggajian {{ $bulanLabel }} ada dalam status <strong>Draft</strong>. Review dan approve atau reject.
                 </div>
-                <form method="POST" action="{{ route('payroll.penggajian.approve') }}" onsubmit="return confirm('Approve penggajian {{ $bulanLabel }}?')">
-                    @csrf
-                    <input type="hidden" name="bulan" value="{{ $bulan }}">
-                    <input type="hidden" name="tahun" value="{{ $tahun }}">
-                    <button type="submit" class="btn-primary-hrms">
-                        <i class="bi bi-check-lg"></i> Approve Penggajian
-                    </button>
-                </form>
-                @endif
+                
+                {{-- Summary Box --}}
+                <div class="sum-box">
+                    <div class="sum-item"><label>Total Gaji</label><div class="val">{{ $totalGajiBulanIni }}</div></div>
+                    <div class="sum-item"><label>Karyawan</label><div class="val">{{ $jmlKaryawanGajian }} orang</div></div>
+                    <div class="sum-item"><label>Status</label><div class="val" style="color:#a06800;">⏳ Draft</div></div>
+                </div>
+
+                {{-- Review Table --}}
+                <div class="table-responsive mb-4">
+                    <table class="table tbl table-borderless">
+                        <thead><tr>
+                            <th>Karyawan</th><th>Golongan</th>
+                            <th>Basic Salary</th><th>Total Income</th><th>Potongan</th>
+                            <th>Take Home Pay</th>
+                        </tr></thead>
+                        <tbody>
+                        @foreach($payrolls as $p)
+                        <tr>
+                            <td>
+                                <div class="d-flex align-items-center gap-2">
+                                    <div class="ava">{{ $p->karyawan->inisial ?? 'NA' }}</div>
+                                    <div>
+                                        <div style="font-weight:700;font-size:.82rem;">{{ $p->karyawan->nama_karyawan ?? '—' }}</div>
+                                        <div style="font-size:.7rem;color:var(--muted);">{{ $p->karyawan->nip ?? '' }}</div>
+                                    </div>
+                                </div>
+                            </td>
+                            <td><span class="bdg bdg-approved">{{ $p->karyawan->golongan->kode_golongan ?? '—' }}</span></td>
+                            <td style="font-weight:600;">Rp {{ number_format($p->basic_salary, 0, ',', '.') }}</td>
+                            <td style="font-weight:700;color:var(--primary);">Rp {{ number_format($p->total_income, 0, ',', '.') }}</td>
+                            <td style="color:var(--danger);font-size:.78rem;">− Rp {{ number_format($p->total_deduction, 0, ',', '.') }}</td>
+                            <td style="font-weight:800;color:var(--success);">Rp {{ number_format($p->take_home_pay, 0, ',', '.') }}</td>
+                        </tr>
+                        @endforeach
+                        </tbody>
+                    </table>
+                </div>
+
+                {{-- Action Buttons --}}
+                <div class="d-flex gap-2">
+                    <form method="POST" action="{{ route('payroll.penggajian.approve') }}" onsubmit="return confirm('Approve penggajian {{ $bulanLabel }}? Data akan final dan tidak bisa diubah.')">
+                        @csrf
+                        <input type="hidden" name="bulan" value="{{ $bulan }}">
+                        <input type="hidden" name="tahun" value="{{ $tahun }}">
+                        <button type="submit" class="btn-success-hrms">
+                            <i class="bi bi-check-lg"></i> Approve Penggajian
+                        </button>
+                    </form>
+                    <form method="POST" action="{{ route('payroll.penggajian.reject') }}" onsubmit="return confirm('Reject penggajian {{ $bulanLabel }}? Data draft akan dihapus dan harus diproses ulang.')">
+                        @csrf
+                        <input type="hidden" name="bulan" value="{{ $bulan }}">
+                        <input type="hidden" name="tahun" value="{{ $tahun }}">
+                        <button type="submit" class="btn-outline-hrms" style="border-color:var(--danger);color:var(--danger);">
+                            <i class="bi bi-x-lg"></i> Reject & Hapus Draft
+                        </button>
+                    </form>
+                </div>
+            @else
+                <div class="alert-banner alert-info mb-3">
+                    <i class="bi bi-info-circle-fill flex-shrink-0"></i>
+                    Belum ada draft penggajian {{ $bulanLabel }}. Gunakan tab "Input Data Penggajian" untuk memproses terlebih dahulu.
+                </div>
             @endif
         </div>
     </div>
