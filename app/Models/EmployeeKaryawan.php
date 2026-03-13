@@ -123,4 +123,24 @@ class EmployeeKaryawan extends Model
     {
         return $this->hasMany(User::class, 'id_karyawan');
     }
+
+    /**
+     * Get initials for avatar
+     */
+    public function getInisialAttribute()
+    {
+        $words = explode(' ', $this->nama_karyawan);
+        if (count($words) >= 2) {
+            return strtoupper(substr($words[0], 0, 1) . substr($words[1], 0, 1));
+        }
+        return strtoupper(substr($this->nama_karyawan, 0, 2));
+    }
+
+    /**
+     * Get current active position
+     */
+    public function posisiAktif()
+    {
+        return $this->hasOne(EmployeePosition::class, 'id_karyawan')->where('is_current', true);
+    }
 }

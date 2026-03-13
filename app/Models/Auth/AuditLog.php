@@ -17,13 +17,15 @@ class AuditLog extends Model
         'record_id',
         'id_user',
         'ip_address',
-        'user_agent',
-        'details',
+        'old_data',
+        'new_data',
         'created_at',
     ];
 
     protected $casts = [
         'created_at' => 'datetime',
+        'old_data' => 'array',
+        'new_data' => 'array',
     ];
 
     // Relationships
@@ -42,5 +44,21 @@ class AuditLog extends Model
     public function scopeAction($query, $action)
     {
         return $query->where('action', $action);
+    }
+
+    /**
+     * Static method to log audit trail
+     */
+    public static function catat(string $action, string $tableName, $recordId, array $details = [])
+    {
+        return self::create([
+            'action' => $action,
+            'table_name' => $tableName,
+            'record_id' => $recordId,
+            'id_user' => auth()->id(),
+            'ip_address' => request()->ip(),
+            'new_data' => $details,
+            'created_at' => now(),
+        ]);
     }
 }

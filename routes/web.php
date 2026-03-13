@@ -3,6 +3,7 @@
 use App\Http\Controllers\Auth\AuthController;
 use App\Http\Controllers\Master\MasterDashboardController;
 use App\Http\Controllers\PersonalAdmin\PersonalAdminController;
+use App\Http\Controllers\Personalia\PersonaliaController;
 use App\Http\Controllers\ProfileController;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Auth;
@@ -26,6 +27,8 @@ Route::get('/', function () {
                 return redirect()->route('personal-admin.dashboard');
             case 'payroll':
                 return redirect()->route('payroll.dashboard');
+            case 'personalia':
+                return redirect()->route('personalia.dashboard');
             default:
                 return redirect()->route('login');
         }
@@ -68,6 +71,8 @@ Route::middleware('auth')->group(function () {
                 return redirect()->route('personal-admin.dashboard');
             case 'payroll':
                 return redirect()->route('payroll.dashboard');
+            case 'personalia':
+                return redirect()->route('personalia.dashboard');
             default:
                 return redirect()->route('login');
         }
@@ -185,4 +190,28 @@ Route::middleware(['auth', 'role:payroll'])->prefix('payroll')->name('payroll.')
     // BPJS Kesehatan
     Route::post  ('/bpjs-kes/generate',         [\App\Http\Controllers\Payroll\PayrollController::class, 'bpjsKesGenerate']) ->name('bpjs-kes.generate');
     Route::delete('/bpjs-kes/{bpjsKesehatan}',  [\App\Http\Controllers\Payroll\PayrollController::class, 'bpjsKesDestroy'])  ->name('bpjs-kes.destroy');
+});
+
+/**
+ * ── PERSONALIA ROUTES ────────────────────────────────
+ * HR Personnel & Attendance Management
+ */
+Route::middleware(['auth', 'role:personalia,master_system'])->prefix('personalia')->name('personalia.')->group(function () {
+    // Dashboard
+    Route::get('/dashboard', [PersonaliaController::class, 'index'])->name('dashboard');
+
+    // Absensi
+    Route::post  ('/absensi',              [PersonaliaController::class, 'absensiStore'])  ->name('absensi.store');
+    Route::put   ('/absensi/{attendance}', [PersonaliaController::class, 'absensiUpdate']) ->name('absensi.update');
+    Route::delete('/absensi/{attendance}', [PersonaliaController::class, 'absensiDestroy'])->name('absensi.destroy');
+
+    // Cuti & Izin
+    Route::post  ('/cuti',                    [PersonaliaController::class, 'cutiStore'])  ->name('cuti.store');
+    Route::put   ('/cuti/{cuti}/approve',     [PersonaliaController::class, 'cutiApprove'])->name('cuti.approve');
+    Route::delete('/cuti/{cuti}',             [PersonaliaController::class, 'cutiDestroy'])->name('cuti.destroy');
+
+    // Lembur
+    Route::post  ('/lembur',                  [PersonaliaController::class, 'lemburStore'])  ->name('lembur.store');
+    Route::put   ('/lembur/{lembur}/approve', [PersonaliaController::class, 'lemburApprove'])->name('lembur.approve');
+    Route::delete('/lembur/{lembur}',         [PersonaliaController::class, 'lemburDestroy'])->name('lembur.destroy');
 });
