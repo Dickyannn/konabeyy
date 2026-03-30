@@ -24,6 +24,7 @@ class EmployeeRiwayatJabatan extends Model
         'golongan_baru',
         'jenis_perubahan',
         'tgl_efektif',
+        'end_date',
         'nomor_sk',
         'catatan',
         'created_by',
@@ -31,6 +32,7 @@ class EmployeeRiwayatJabatan extends Model
 
     protected $casts = [
         'tgl_efektif' => 'datetime',
+        'end_date' => 'datetime',
     ];
 
     public function karyawan(): BelongsTo

@@ -257,6 +257,23 @@
         .empty-state i { font-size: 2.5rem; display: block; margin-bottom: 0.75rem; opacity: 0.4; }
         .empty-state p { font-size: 0.875rem; font-weight: 500; margin: 0; }
 
+        /* ── KEPEGAWAIAN FIELD STYLES ──────────────────── */
+        .kepegawaian-field:disabled {
+            background-color: #f8f9fa !important;
+            color: #6c757d !important;
+            border-color: #dee2e6 !important;
+            cursor: not-allowed;
+        }
+        
+        .edit-only-notice {
+            font-size: 0.75rem;
+            margin-top: 0.25rem;
+        }
+        
+        .edit-only-notice i {
+            margin-right: 0.25rem;
+        }
+
         /* ── RESPONSIVE ─────────────────────────────────── */
         @media (max-width: 767.98px) {
             .navbar-hrms { padding: 0 1rem; }
@@ -547,7 +564,7 @@
                                             <strong>{{ $karyawan->nama_karyawan }}</strong>
                                         </div>
                                     </td>
-                                    <td>{{ $karyawan->currentPosition?->nama_jabatan ?? '-' }}</td>
+                                    <td>{{ $karyawan->jabatan ?? '-' }}</td>
                                     <td><span class="badge-permanent">{{ $karyawan->golongan?->kode_golongan ?? '-' }}</span></td>
                                     <td>{{ $karyawan->currentPosition?->costCenter?->nama_cc ?? '-' }}</td>
                                     <td>{{ $karyawan->unit?->nama_pt ?? '-' }}</td>
@@ -631,52 +648,77 @@
                         </div>
 
                         <div class="modal-section-title">Data Kepegawaian</div>
-                        <div class="row g-3">
+                        <div class="row g-3" id="kepegawaian-section">
                             <div class="col-sm-4">
                                 <label class="form-label">Golongan <span class="text-danger">*</span></label>
-                                <select name="id_golongan" class="form-select" required>
+                                <select name="id_golongan" class="form-select kepegawaian-field" required>
                                     <option value="">-- Pilih Golongan --</option>
                                     @foreach($golongans as $gol)
                                         <option value="{{ $gol->id }}">{{ $gol->kode_golongan }} — {{ $gol->nama_golongan }}</option>
                                     @endforeach
                                 </select>
+                                <small class="text-muted edit-only-notice" style="display: none;">
+                                    <i class="bi bi-info-circle"></i> Perubahan data kepegawaian melalui menu "Riwayat Jabatan"
+                                </small>
+                            </div>
+                            <div class="col-sm-4">
+                                <label class="form-label">Jabatan <span class="text-danger">*</span></label>
+                                <input type="text" name="jabatan" class="form-control kepegawaian-field" placeholder="Manager, Staff, Supervisor..." required>
+                                <small class="text-muted edit-only-notice" style="display: none;">
+                                    <i class="bi bi-info-circle"></i> Perubahan data kepegawaian melalui menu "Riwayat Jabatan"
+                                </small>
                             </div>
                             <div class="col-sm-4">
                                 <label class="form-label">Unit / PT <span class="text-danger">*</span></label>
-                                <select name="id_unit" class="form-select" required>
+                                <select name="id_unit" class="form-select kepegawaian-field" required>
                                     <option value="">-- Pilih Unit --</option>
                                     @foreach($units as $unit)
                                         <option value="{{ $unit->id }}">{{ $unit->nama_pt }}</option>
                                     @endforeach
                                 </select>
+                                <small class="text-muted edit-only-notice" style="display: none;">
+                                    <i class="bi bi-info-circle"></i> Perubahan data kepegawaian melalui menu "Riwayat Jabatan"
+                                </small>
                             </div>
                             <div class="col-sm-4">
                                 <label class="form-label">Status Kawin</label>
-                                <select name="id_status_kawin" class="form-select">
+                                <select name="id_status_kawin" class="form-select kepegawaian-field">
                                     <option value="">-- Pilih --</option>
                                     @foreach($statusKawins as $sk)
                                         <option value="{{ $sk->id }}">{{ $sk->deskripsi }}</option>
                                     @endforeach
                                 </select>
+                                <small class="text-muted edit-only-notice" style="display: none;">
+                                    <i class="bi bi-info-circle"></i> Perubahan data kepegawaian melalui menu "Riwayat Jabatan"
+                                </small>
                             </div>
                             <div class="col-sm-4">
                                 <label class="form-label">Status Karyawan <span class="text-danger">*</span></label>
-                                <select name="id_status_karyawan" class="form-select" required>
+                                <select name="id_status_karyawan" class="form-select kepegawaian-field" required>
                                     @foreach($statusKaryawans as $status)
                                         <option value="{{ $status->id }}">{{ $status->nama_status }}</option>
                                     @endforeach
                                 </select>
+                                <small class="text-muted edit-only-notice" style="display: none;">
+                                    <i class="bi bi-info-circle"></i> Perubahan data kepegawaian melalui menu "Riwayat Jabatan"
+                                </small>
                             </div>
                             <div class="col-sm-4">
                                 <label class="form-label">Tanggal Bergabung <span class="text-danger">*</span></label>
-                                <input type="date" name="tanggal_masuk" class="form-control" required>
+                                <input type="date" name="tanggal_masuk" class="form-control kepegawaian-field" required>
+                                <small class="text-muted edit-only-notice" style="display: none;">
+                                    <i class="bi bi-info-circle"></i> Perubahan data kepegawaian melalui menu "Riwayat Jabatan"
+                                </small>
                             </div>
                             <div class="col-sm-4">
                                 <label class="form-label">Status Aktif</label>
-                                <select name="is_active" class="form-select">
+                                <select name="is_active" class="form-select kepegawaian-field">
                                     <option value="1">Aktif</option>
                                     <option value="0">Nonaktif</option>
                                 </select>
+                                <small class="text-muted edit-only-notice" style="display: none;">
+                                    <i class="bi bi-info-circle"></i> Perubahan data kepegawaian melalui menu "Riwayat Jabatan"
+                                </small>
                             </div>
                         </div>
 
@@ -1177,7 +1219,7 @@
                         <div class="row g-3">
                             <div class="col-sm-6">
                                 <label class="form-label">Karyawan <span class="text-danger">*</span></label>
-                                <select name="id_karyawan" class="form-select" required>
+                                <select name="id_karyawan" class="form-select" required onchange="onKaryawanSelected(this)">
                                     <option value="">-- Pilih Karyawan --</option>
                                     @foreach($karyawans as $k)
                                         <option value="{{ $k->id }}">{{ $k->nama_karyawan }}</option>
@@ -1257,6 +1299,11 @@ function switchTab(btn, targetId) {
     btn.classList.add('active');
     const pane = modal.querySelector('#' + targetId);
     if (pane) pane.classList.add('active');
+    
+    // Reset karyawan form when switching to it (for create mode)
+    if (targetId === 'karyawan-form') {
+        resetKaryawanForm();
+    }
 }
 
 function switchTabById(targetId) {
@@ -1272,6 +1319,54 @@ function switchTabById(targetId) {
             btn.classList.add('active');
         }
     });
+    
+    // Reset karyawan form when switching to it (for create mode)
+    if (targetId === 'karyawan-form') {
+        resetKaryawanForm();
+    }
+}
+
+// ── Reset Karyawan Form for Create Mode ──────────────────────
+function resetKaryawanForm() {
+    const form = document.querySelector('#karyawan-form form');
+    if (!form) return;
+    
+    // Reset form action to create mode
+    form.action = "{{ route('personal-admin.karyawan.store') }}";
+    
+    // Remove method input (for create mode)
+    const methodInput = form.querySelector('input[name="_method"]');
+    if (methodInput) {
+        methodInput.remove();
+    }
+    
+    // Clear all form fields
+    form.reset();
+    
+    // Re-enable kepegawaian fields (for create mode)
+    const kepegawaianFields = form.querySelectorAll('.kepegawaian-field');
+    kepegawaianFields.forEach(field => {
+        field.disabled = false;
+        field.style.backgroundColor = '';
+        field.style.color = '';
+        // Re-add required attribute for required fields
+        if (field.name === 'id_golongan' || field.name === 'jabatan' || field.name === 'id_unit' || field.name === 'id_status_karyawan' || field.name === 'tanggal_masuk') {
+            field.setAttribute('required', 'required');
+        }
+    });
+    
+    // Hide edit notices
+    const editNotices = form.querySelectorAll('.edit-only-notice');
+    editNotices.forEach(notice => {
+        notice.style.display = 'none';
+    });
+    
+    // Reset submit button text
+    const submitBtn = form.querySelector('button[type="submit"]');
+    if (submitBtn) submitBtn.innerHTML = '<i class="bi bi-check-lg"></i> Simpan Data';
+    
+    // Reset editing state
+    editingKaryawan = null;
 }
 
 // ── Live search/filter table ─────────────────────────────────
@@ -1353,7 +1448,7 @@ function editKaryawan(id) {
                 }
                 methodInput.value = 'PUT';
                 
-                // Populate form fields
+                // Populate ONLY identity fields (editable during update)
                 form.querySelector('input[name="nip"]').value = karyawan.nip || '';
                 form.querySelector('input[name="nama_karyawan"]').value = karyawan.nama_karyawan || '';
                 form.querySelector('input[name="nik"]').value = karyawan.nik || '';
@@ -1362,12 +1457,30 @@ function editKaryawan(id) {
                 form.querySelector('input[name="nomor_telepon"]').value = karyawan.nomor_telepon || '';
                 form.querySelector('input[name="email"]').value = karyawan.email || '';
                 form.querySelector('textarea[name="alamat"]').value = karyawan.alamat || '';
+                
+                // Populate kepegawaian fields but disable them
                 form.querySelector('select[name="id_golongan"]').value = karyawan.id_golongan || '';
+                form.querySelector('input[name="jabatan"]').value = karyawan.jabatan || '';
                 form.querySelector('select[name="id_unit"]').value = karyawan.id_unit || '';
                 form.querySelector('select[name="id_status_kawin"]').value = karyawan.id_status_kawin || '';
                 form.querySelector('select[name="id_status_karyawan"]').value = karyawan.id_status_karyawan || '';
                 form.querySelector('input[name="tanggal_masuk"]').value = karyawan.tanggal_masuk || '';
                 form.querySelector('select[name="is_active"]').value = karyawan.is_active ? '1' : '0';
+                
+                // Disable kepegawaian fields during edit
+                const kepegawaianFields = form.querySelectorAll('.kepegawaian-field');
+                kepegawaianFields.forEach(field => {
+                    field.disabled = true;
+                    field.style.backgroundColor = '#f8f9fa';
+                    field.style.color = '#6c757d';
+                    field.removeAttribute('required'); // Remove required validation for disabled fields
+                });
+                
+                // Show edit notices
+                const editNotices = form.querySelectorAll('.edit-only-notice');
+                editNotices.forEach(notice => {
+                    notice.style.display = 'block';
+                });
                 
                 const submitBtn = form.querySelector('button[type="submit"]');
                 if (submitBtn) submitBtn.innerHTML = '<i class="bi bi-check-lg"></i> Update Data';
@@ -1552,6 +1665,33 @@ function resetRiwayatForm() {
         const submitBtn = form.querySelector('button[type="submit"]');
         if (submitBtn) submitBtn.innerHTML = '<i class="bi bi-check-lg"></i> Simpan Riwayat';
     }
+}
+
+// ── AUTO-POPULATE RIWAYAT FORM ────────────────────────────
+function onKaryawanSelected(selectElement) {
+    const karyawanId = selectElement.value;
+    const form = selectElement.closest('form');
+    
+    if (!karyawanId) {
+        // Clear jabatan_lama and golongan_lama if no karyawan selected
+        form.querySelector('input[name="jabatan_lama"]').value = '';
+        form.querySelector('select[name="golongan_lama"]').value = '';
+        return;
+    }
+    
+    // Fetch current employee data
+    fetch(`/personal-admin/employee-current/${karyawanId}`)
+        .then(response => response.json())
+        .then(result => {
+            const employee = result.data;
+            
+            // Auto-populate jabatan_lama and golongan_lama
+            form.querySelector('input[name="jabatan_lama"]').value = employee.current_jabatan;
+            form.querySelector('select[name="golongan_lama"]').value = employee.current_golongan_id || '';
+        })
+        .catch(error => {
+            console.error('Error fetching employee current data:', error);
+        });
 }
 
 // ── KONTRAK CRUD ──────────────────────────────────────────

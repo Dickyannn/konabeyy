@@ -148,6 +148,7 @@ class PersonalAdminController extends Controller
             'email'            => 'nullable|email|max:100',
             'alamat'           => 'nullable|string',
             'id_golongan'      => 'required|integer|exists:master_golongan,id',
+            'jabatan'          => 'required|string|max:150',
             'id_unit'          => 'required|integer|exists:master_unit_pt,id',
             'id_status_kawin'  => 'nullable|integer|exists:master_status_kawin,id',
             'id_status_karyawan' => 'required|integer|exists:master_status_karyawan,id',
@@ -159,19 +160,19 @@ class PersonalAdminController extends Controller
             'is_active' => $request->boolean('is_active', true),
         ]));
 
-        AuditLog::create([
-            'id_user'    => auth()->id(),
-            'action'     => 'CREATE_KARYAWAN',
-            'table_name' => 'employee_karyawan',
-            'record_id'  => $karyawan->id,
-            'new_data'   => json_encode($data),
-        ]);
+        AuditLog::catat(
+            'CREATE_KARYAWAN',
+            'employee_karyawan',
+            $karyawan->id,
+            $data
+        );
 
         return back()->with('success', "Karyawan {$karyawan->nama_karyawan} berhasil ditambahkan.");
     }
 
     public function karyawanUpdate(Request $request, EmployeeKaryawan $karyawan)
     {
+        // Only validate identity fields during update - kepegawaian fields are not editable
         $data = $request->validate([
             'nip'              => "required|string|max:20|unique:employee_karyawan,nip,{$karyawan->id}",
             'nama_karyawan'    => 'required|string|max:150',
@@ -181,18 +182,12 @@ class PersonalAdminController extends Controller
             'nomor_telepon'    => 'nullable|string|max:20',
             'email'            => 'nullable|email|max:100',
             'alamat'           => 'nullable|string',
-            'id_golongan'      => 'required|integer|exists:master_golongan,id',
-            'id_unit'          => 'required|integer|exists:master_unit_pt,id',
-            'id_status_kawin'  => 'nullable|integer|exists:master_status_kawin,id',
-            'id_status_karyawan' => 'required|integer|exists:master_status_karyawan,id',
-            'tanggal_masuk'    => 'required|date',
-            'is_active'        => 'boolean',
         ]);
 
         $old = $karyawan->toArray();
-        $karyawan->update(array_merge($data, [
-            'is_active' => $request->boolean('is_active', true),
-        ]));
+        
+        // Only update identity fields - keep existing kepegawaian data
+        $karyawan->update($data);
 
         AuditLog::create([
             'id_user'    => auth()->id(),
@@ -339,19 +334,34 @@ class PersonalAdminController extends Controller
             'catatan'          => 'nullable|string',
         ]);
 
+        // Get the employee
+        $karyawan = EmployeeKaryawan::find($data['id_karyawan']);
+        
+        // Update end_date of previous riwayat jabatan records for this employee
+        EmployeeRiwayatJabatan::where('id_karyawan', $data['id_karyawan'])
+            ->where('end_date', '9999-12-31')
+            ->update(['end_date' => \Carbon\Carbon::parse($data['tgl_efektif'])->subDay()]);
+
+        // Create new riwayat jabatan record with default end_date
         $riwayat = EmployeeRiwayatJabatan::create(array_merge($data, [
-            'created_by' => auth()->user()->name ?? 'system'
+            'end_date' => '9999-12-31', // Default end date
+            'created_by' => auth()->user()->nama ?? 'system'
         ]));
 
-        AuditLog::create([
-            'id_user'    => auth()->id(),
-            'action'     => 'RIWAYAT_JABATAN_' . strtoupper($data['jenis_perubahan']),
-            'table_name' => 'employee_riwayat_jabatan',
-            'record_id'  => $riwayat->id,
-            'new_data'   => json_encode($data),
+        // Update employee_karyawan table with new golongan and jabatan
+        $karyawan->update([
+            'id_golongan' => $data['golongan_baru'],
+            'jabatan' => $data['jabatan_baru']
         ]);
 
-        return back()->with('success', "Riwayat jabatan berhasil dicatat.");
+        AuditLog::catat(
+            'RIWAYAT_JABATAN_' . strtoupper($data['jenis_perubahan']),
+            'employee_riwayat_jabatan',
+            $riwayat->id,
+            $data
+        );
+
+        return back()->with('success', "Riwayat jabatan berhasil dicatat dan data karyawan diupdate.");
     }
 
     public function riwayatShow(EmployeeRiwayatJabatan $riwayat)
@@ -372,7 +382,32 @@ class PersonalAdminController extends Controller
             'catatan'          => 'nullable|string',
         ]);
 
+        $oldTglEfektif = $riwayat->tgl_efektif;
+        $newTglEfektif = \Carbon\Carbon::parse($data['tgl_efektif']);
+        
+        // If effective date changed, update end_date of previous records
+        if ($oldTglEfektif->format('Y-m-d') !== $newTglEfektif->format('Y-m-d')) {
+            // Update end_date of previous riwayat jabatan records for this employee
+            EmployeeRiwayatJabatan::where('id_karyawan', $riwayat->id_karyawan)
+                ->where('id', '<', $riwayat->id)
+                ->where('end_date', $oldTglEfektif->subDay())
+                ->update(['end_date' => $newTglEfektif->copy()->subDay()]);
+        }
+
         $riwayat->update($data);
+        
+        // Update employee_karyawan table with new golongan if this is the latest record
+        $latestRiwayat = EmployeeRiwayatJabatan::where('id_karyawan', $riwayat->id_karyawan)
+            ->where('end_date', '9999-12-31')
+            ->first();
+            
+        if ($latestRiwayat && $latestRiwayat->id === $riwayat->id) {
+            $riwayat->karyawan->update([
+                'id_golongan' => $data['golongan_baru'],
+                'jabatan' => $data['jabatan_baru']
+            ]);
+        }
+        
         return back()->with('success', 'Riwayat jabatan berhasil diupdate.');
     }
 
@@ -380,5 +415,27 @@ class PersonalAdminController extends Controller
     {
         $riwayat->delete();
         return back()->with('success', 'Riwayat jabatan dihapus.');
+    }
+
+    /**
+     * Get employee current data for riwayat jabatan form
+     */
+    public function getEmployeeCurrentData(EmployeeKaryawan $karyawan)
+    {
+        // Get latest riwayat jabatan for this employee
+        $latestRiwayat = EmployeeRiwayatJabatan::where('id_karyawan', $karyawan->id)
+            ->where('end_date', '9999-12-31')
+            ->orderBy('tgl_efektif', 'desc')
+            ->first();
+
+        return response()->json([
+            'data' => [
+                'id' => $karyawan->id,
+                'nama_karyawan' => $karyawan->nama_karyawan,
+                'current_golongan_id' => $karyawan->id_golongan,
+                'current_golongan_name' => $karyawan->golongan->nama_golongan ?? '',
+                'current_jabatan' => $karyawan->jabatan ?? 'Belum ada jabatan',
+            ]
+        ]);
     }
 }

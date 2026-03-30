@@ -17,6 +17,8 @@ class AuditLog extends Model
         'record_id',
         'id_user',
         'ip_address',
+        'user_agent',
+        'details',
         'old_data',
         'new_data',
         'created_at',
@@ -57,7 +59,8 @@ class AuditLog extends Model
             'record_id' => $recordId,
             'id_user' => auth()->id(),
             'ip_address' => request()->ip(),
-            'new_data' => $details,
+            'user_agent' => request()->userAgent(),
+            'details' => json_encode($details),
             'created_at' => now(),
         ]);
     }

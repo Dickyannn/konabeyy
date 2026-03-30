@@ -39,6 +39,7 @@ class EmployeeKaryawan extends Model
         'id_status_karyawan',
         'id_status_kawin',
         'id_golongan',
+        'jabatan',
         'id_unit',
         'id_atasan',
         'foto_path',
