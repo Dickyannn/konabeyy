@@ -479,15 +479,15 @@
             </div>
         </div>
 
-        <!-- 6. Riwayat Jabatan -->
+        <!-- 6. History Data Karyawan -->
         <div class="col-12 col-sm-6 col-lg-4">
             <div class="menu-card" data-bs-toggle="modal" data-bs-target="#modalRiwayat">
                 <div class="menu-card-top">
                     <span class="menu-card-icon">📈</span>
                     <span class="menu-badge badge-crud">CRUD</span>
                 </div>
-                <div class="menu-card-title">Riwayat Jabatan</div>
-                <div class="menu-card-desc">History mutasi, promosi, demosi</div>
+                <div class="menu-card-title">History Data Karyawan</div>
+                <div class="menu-card-desc">Riwayat perubahan jabatan, golongan, unit, dll</div>
             </div>
         </div>
 
@@ -517,8 +517,11 @@
                     <button class="modal-tab active" onclick="switchTab(this, 'karyawan-list')">
                         <i class="bi bi-table me-1"></i> Daftar Karyawan
                     </button>
-                    <button class="modal-tab" onclick="switchTab(this, 'karyawan-form')">
-                        <i class="bi bi-person-plus me-1"></i> Tambah / Edit
+                    <button class="modal-tab" onclick="switchTab(this, 'karyawan-tambah')">
+                        <i class="bi bi-person-plus me-1"></i> Tambah
+                    </button>
+                    <button class="modal-tab" id="btnEditTab" onclick="switchTab(this, 'karyawan-edit')" style="display:none;">
+                        <i class="bi bi-pencil me-1"></i> Edit
                     </button>
                 </div>
 
@@ -541,7 +544,7 @@
                                 <option value="{{ $unit->nama_pt }}">{{ $unit->nama_pt }}</option>
                             @endforeach
                         </select>
-                        <button class="btn-primary-hrms" onclick="switchTabById('karyawan-form')">
+                        <button class="btn-primary-hrms" onclick="switchTabById('karyawan-tambah')">
                             <i class="bi bi-plus-lg"></i> Tambah
                         </button>
                     </div>
@@ -577,16 +580,9 @@
                                     </td>
                                     <td>
                                         <div class="d-flex gap-1">
-                                            <button class="btn-sm-action btn-edit" onclick="editKaryawan({{ $karyawan->id }})">
-                                                <i class="bi bi-pencil"></i> Edit
+                                            <button class="btn-sm-action btn-view" onclick="viewKaryawan({{ $karyawan->id }})">
+                                                <i class="bi bi-eye"></i> View
                                             </button>
-                                            <form action="{{ route('personal-admin.karyawan.destroy', $karyawan) }}" method="POST" style="display:inline;">
-                                                @csrf
-                                                @method('DELETE')
-                                                <button type="submit" class="btn-sm-action btn-del" onclick="return confirm('Yakin ingin menonaktifkan karyawan ini?')">
-                                                    <i class="bi bi-trash"></i>
-                                                </button>
-                                            </form>
                                         </div>
                                     </td>
                                 </tr>
@@ -603,8 +599,8 @@
                     </div>
                 </div>
 
-                <!-- TAB: Form -->
-                <div id="karyawan-form" class="tab-pane">
+                <!-- TAB: Tambah (Create) -->
+                <div id="karyawan-tambah" class="tab-pane">
                     <form action="{{ route('personal-admin.karyawan.store') }}" method="POST">
                         @csrf
                         <div class="modal-section-title">Identitas Karyawan</div>
@@ -648,87 +644,276 @@
                         </div>
 
                         <div class="modal-section-title">Data Kepegawaian</div>
-                        <div class="row g-3" id="kepegawaian-section">
+                        <div class="row g-3">
                             <div class="col-sm-4">
                                 <label class="form-label">Golongan <span class="text-danger">*</span></label>
-                                <select name="id_golongan" class="form-select kepegawaian-field" required>
+                                <select name="id_golongan" class="form-select" required>
                                     <option value="">-- Pilih Golongan --</option>
                                     @foreach($golongans as $gol)
                                         <option value="{{ $gol->id }}">{{ $gol->kode_golongan }} — {{ $gol->nama_golongan }}</option>
                                     @endforeach
                                 </select>
-                                <small class="text-muted edit-only-notice" style="display: none;">
-                                    <i class="bi bi-info-circle"></i> Perubahan data kepegawaian melalui menu "Riwayat Jabatan"
-                                </small>
                             </div>
                             <div class="col-sm-4">
                                 <label class="form-label">Jabatan <span class="text-danger">*</span></label>
-                                <input type="text" name="jabatan" class="form-control kepegawaian-field" placeholder="Manager, Staff, Supervisor..." required>
-                                <small class="text-muted edit-only-notice" style="display: none;">
-                                    <i class="bi bi-info-circle"></i> Perubahan data kepegawaian melalui menu "Riwayat Jabatan"
-                                </small>
+                                <input type="text" name="jabatan" class="form-control" placeholder="Manager, Staff, Supervisor..." required>
                             </div>
                             <div class="col-sm-4">
                                 <label class="form-label">Unit / PT <span class="text-danger">*</span></label>
-                                <select name="id_unit" class="form-select kepegawaian-field" required>
+                                <select name="id_unit" class="form-select" required>
                                     <option value="">-- Pilih Unit --</option>
                                     @foreach($units as $unit)
                                         <option value="{{ $unit->id }}">{{ $unit->nama_pt }}</option>
                                     @endforeach
                                 </select>
-                                <small class="text-muted edit-only-notice" style="display: none;">
-                                    <i class="bi bi-info-circle"></i> Perubahan data kepegawaian melalui menu "Riwayat Jabatan"
-                                </small>
                             </div>
                             <div class="col-sm-4">
                                 <label class="form-label">Status Kawin</label>
-                                <select name="id_status_kawin" class="form-select kepegawaian-field">
+                                <select name="id_status_kawin" class="form-select">
                                     <option value="">-- Pilih --</option>
                                     @foreach($statusKawins as $sk)
                                         <option value="{{ $sk->id }}">{{ $sk->deskripsi }}</option>
                                     @endforeach
                                 </select>
-                                <small class="text-muted edit-only-notice" style="display: none;">
-                                    <i class="bi bi-info-circle"></i> Perubahan data kepegawaian melalui menu "Riwayat Jabatan"
-                                </small>
                             </div>
                             <div class="col-sm-4">
                                 <label class="form-label">Status Karyawan <span class="text-danger">*</span></label>
-                                <select name="id_status_karyawan" class="form-select kepegawaian-field" required>
+                                <select name="id_status_karyawan" class="form-select" required>
                                     @foreach($statusKaryawans as $status)
                                         <option value="{{ $status->id }}">{{ $status->nama_status }}</option>
                                     @endforeach
                                 </select>
-                                <small class="text-muted edit-only-notice" style="display: none;">
-                                    <i class="bi bi-info-circle"></i> Perubahan data kepegawaian melalui menu "Riwayat Jabatan"
-                                </small>
                             </div>
                             <div class="col-sm-4">
                                 <label class="form-label">Tanggal Bergabung <span class="text-danger">*</span></label>
-                                <input type="date" name="tanggal_masuk" class="form-control kepegawaian-field" required>
-                                <small class="text-muted edit-only-notice" style="display: none;">
-                                    <i class="bi bi-info-circle"></i> Perubahan data kepegawaian melalui menu "Riwayat Jabatan"
-                                </small>
+                                <input type="date" name="tanggal_masuk" class="form-control" required>
                             </div>
                             <div class="col-sm-4">
                                 <label class="form-label">Status Aktif</label>
-                                <select name="is_active" class="form-select kepegawaian-field">
+                                <select name="is_active" class="form-select">
                                     <option value="1">Aktif</option>
                                     <option value="0">Nonaktif</option>
                                 </select>
-                                <small class="text-muted edit-only-notice" style="display: none;">
-                                    <i class="bi bi-info-circle"></i> Perubahan data kepegawaian melalui menu "Riwayat Jabatan"
-                                </small>
                             </div>
                         </div>
 
                         <div class="d-flex gap-2 mt-4">
-                            <button type="submit" class="btn-primary-hrms"><i class="bi bi-check-lg"></i> Simpan Data</button>
+                            <button type="submit" class="btn-primary-hrms"><i class="bi bi-check-lg"></i> Simpan Karyawan</button>
                             <button type="button" class="btn-outline-hrms" onclick="switchTabById('karyawan-list')">Batal</button>
                         </div>
                     </form>
                 </div>
 
+                <!-- TAB: Edit (Update) -->
+                <div id="karyawan-edit" class="tab-pane">
+                    <form id="formEditKaryawan" action="" method="POST">
+                        @csrf
+                        <input type="hidden" name="_method" value="PUT">
+                        <div class="modal-section-title">Identitas Karyawan</div>
+                        <div class="row g-3">
+                            <div class="col-sm-4">
+                                <label class="form-label">NIP <span class="text-danger">*</span></label>
+                                <input type="text" name="nip" class="form-control" placeholder="STP-2024-XXX" required>
+                            </div>
+                            <div class="col-sm-8">
+                                <label class="form-label">Nama Lengkap <span class="text-danger">*</span></label>
+                                <input type="text" name="nama_karyawan" class="form-control" placeholder="Nama sesuai KTP" required>
+                            </div>
+                            <div class="col-sm-4">
+                                <label class="form-label">NIK (KTP)</label>
+                                <input type="text" name="nik" class="form-control" placeholder="16 digit" maxlength="16">
+                            </div>
+                            <div class="col-sm-4">
+                                <label class="form-label">Tanggal Lahir</label>
+                                <input type="date" name="tanggal_lahir" class="form-control">
+                            </div>
+                            <div class="col-sm-4">
+                                <label class="form-label">Jenis Kelamin</label>
+                                <select name="jenis_kelamin" class="form-select">
+                                    <option value="">-- Pilih --</option>
+                                    <option value="L">Laki-laki</option>
+                                    <option value="P">Perempuan</option>
+                                </select>
+                            </div>
+                            <div class="col-sm-6">
+                                <label class="form-label">No. HP</label>
+                                <input type="text" name="nomor_telepon" class="form-control" placeholder="08xxxxxxxxxx">
+                            </div>
+                            <div class="col-sm-6">
+                                <label class="form-label">Email</label>
+                                <input type="email" name="email" class="form-control" placeholder="email@perusahaan.com">
+                            </div>
+                            <div class="col-12">
+                                <label class="form-label">Alamat</label>
+                                <textarea name="alamat" class="form-control" rows="2" placeholder="Alamat lengkap"></textarea>
+                            </div>
+                        </div>
+
+                        <div class="modal-section-title">Data Kepegawaian (Read Only)</div>
+                        <div class="alert alert-info" style="background: #EBF8FC; border: 1.5px solid #B3E5F2; border-radius: 8px; padding: 0.75rem; margin-bottom: 1rem; font-size: 0.82rem;">
+                            <i class="bi bi-info-circle me-2" style="color: var(--primary);"></i>
+                            <strong>Perubahan data kepegawaian</strong> (Golongan, Jabatan, Unit, dll) dapat diubah melalui menu <strong>"Riwayat Jabatan"</strong>
+                        </div>
+                        <div class="row g-3">
+                            <div class="col-sm-4">
+                                <label class="form-label">Golongan</label>
+                                <select name="id_golongan" class="form-select" disabled>
+                                    @foreach($golongans as $gol)
+                                        <option value="{{ $gol->id }}">{{ $gol->kode_golongan }} — {{ $gol->nama_golongan }}</option>
+                                    @endforeach
+                                </select>
+                            </div>
+                            <div class="col-sm-4">
+                                <label class="form-label">Jabatan</label>
+                                <input type="text" name="jabatan" class="form-control" disabled>
+                            </div>
+                            <div class="col-sm-4">
+                                <label class="form-label">Unit / PT</label>
+                                <select name="id_unit" class="form-select" disabled>
+                                    @foreach($units as $unit)
+                                        <option value="{{ $unit->id }}">{{ $unit->nama_pt }}</option>
+                                    @endforeach
+                                </select>
+                            </div>
+                            <div class="col-sm-4">
+                                <label class="form-label">Status Kawin</label>
+                                <select name="id_status_kawin" class="form-select" disabled>
+                                    <option value="">-- Pilih --</option>
+                                    @foreach($statusKawins as $sk)
+                                        <option value="{{ $sk->id }}">{{ $sk->deskripsi }}</option>
+                                    @endforeach
+                                </select>
+                            </div>
+                            <div class="col-sm-4">
+                                <label class="form-label">Status Karyawan</label>
+                                <select name="id_status_karyawan" class="form-select" disabled>
+                                    @foreach($statusKaryawans as $status)
+                                        <option value="{{ $status->id }}">{{ $status->nama_status }}</option>
+                                    @endforeach
+                                </select>
+                            </div>
+                            <div class="col-sm-4">
+                                <label class="form-label">Tanggal Bergabung</label>
+                                <input type="date" name="tanggal_masuk" class="form-control" disabled>
+                            </div>
+                            <div class="col-sm-4">
+                                <label class="form-label">Status Aktif</label>
+                                <select name="is_active" class="form-select" disabled>
+                                    <option value="1">Aktif</option>
+                                    <option value="0">Nonaktif</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div class="d-flex gap-2 mt-4">
+                            <button type="submit" class="btn-primary-hrms"><i class="bi bi-check-lg"></i> Update Data</button>
+                            <button type="button" class="btn-outline-hrms" onclick="resetEditForm()">Batal</button>
+                        </div>
+                    </form>
+                </div>
+
+            </div>
+        </div>
+    </div>
+</div>
+
+
+<!-- ══════════════════════════════════════════════════════════ -->
+<!--  MODAL 1-B: VIEW DETAIL KARYAWAN                            -->
+<!-- ══════════════════════════════════════════════════════════ -->
+<div class="modal fade" id="modalViewKaryawan" tabindex="-1">
+    <div class="modal-dialog modal-lg modal-dialog-scrollable">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">👤 Detail Karyawan</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div style="position: relative; min-height: 400px;">
+                    <div style="padding-bottom: 0;">
+
+                    <!-- Section A: Identitas Karyawan -->
+                    <div class="modal-section-title">A. Identitas Karyawan</div>
+                    <div class="row g-3">
+                        <div class="col-sm-6">
+                            <label class="form-label" style="font-weight: 600; color: var(--text-muted); font-size: 0.8rem; text-transform: uppercase;">NIP</label>
+                            <div style="font-size: 1rem; font-weight: 600; color: var(--text-dark);" id="view_nip">-</div>
+                        </div>
+                        <div class="col-sm-6">
+                            <label class="form-label" style="font-weight: 600; color: var(--text-muted); font-size: 0.8rem; text-transform: uppercase;">Nama Lengkap</label>
+                            <div style="font-size: 1rem; font-weight: 600; color: var(--text-dark);" id="view_nama_karyawan">-</div>
+                        </div>
+                        <div class="col-sm-6">
+                            <label class="form-label" style="font-weight: 600; color: var(--text-muted); font-size: 0.8rem; text-transform: uppercase;">NIK</label>
+                            <div style="font-size: 0.95rem; color: var(--text-dark);" id="view_nik">-</div>
+                        </div>
+                        <div class="col-sm-6">
+                            <label class="form-label" style="font-weight: 600; color: var(--text-muted); font-size: 0.8rem; text-transform: uppercase;">Tanggal Lahir</label>
+                            <div style="font-size: 0.95rem; color: var(--text-dark);" id="view_tanggal_lahir">-</div>
+                        </div>
+                        <div class="col-sm-6">
+                            <label class="form-label" style="font-weight: 600; color: var(--text-muted); font-size: 0.8rem; text-transform: uppercase;">Jenis Kelamin</label>
+                            <div style="font-size: 0.95rem; color: var(--text-dark);" id="view_jenis_kelamin">-</div>
+                        </div>
+                        <div class="col-sm-6">
+                            <label class="form-label" style="font-weight: 600; color: var(--text-muted); font-size: 0.8rem; text-transform: uppercase;">No HP</label>
+                            <div style="font-size: 0.95rem; color: var(--text-dark);" id="view_nomor_telepon">-</div>
+                        </div>
+                        <div class="col-sm-6">
+                            <label class="form-label" style="font-weight: 600; color: var(--text-muted); font-size: 0.8rem; text-transform: uppercase;">Email</label>
+                            <div style="font-size: 0.95rem; color: var(--text-dark);" id="view_email">-</div>
+                        </div>
+                        <div class="col-sm-6"></div>
+                        <div class="col-12">
+                            <label class="form-label" style="font-weight: 600; color: var(--text-muted); font-size: 0.8rem; text-transform: uppercase;">Alamat</label>
+                            <div style="font-size: 0.95rem; color: var(--text-dark);" id="view_alamat">-</div>
+                        </div>
+                    </div>
+
+                    <!-- Section B: Data Kepegawaian -->
+                    <div class="modal-section-title" style="margin-top: 2rem;">B. Data Kepegawaian</div>
+                    <div class="row g-3">
+                        <div class="col-sm-6">
+                            <label class="form-label" style="font-weight: 600; color: var(--text-muted); font-size: 0.8rem; text-transform: uppercase;">Golongan</label>
+                            <div style="font-size: 0.95rem; color: var(--text-dark);" id="view_golongan">-</div>
+                        </div>
+                        <div class="col-sm-6">
+                            <label class="form-label" style="font-weight: 600; color: var(--text-muted); font-size: 0.8rem; text-transform: uppercase;">Jabatan</label>
+                            <div style="font-size: 0.95rem; color: var(--text-dark);" id="view_jabatan">-</div>
+                        </div>
+                        <div class="col-sm-6">
+                            <label class="form-label" style="font-weight: 600; color: var(--text-muted); font-size: 0.8rem; text-transform: uppercase;">Unit / PT</label>
+                            <div style="font-size: 0.95rem; color: var(--text-dark);" id="view_unit">-</div>
+                        </div>
+                        <div class="col-sm-6">
+                            <label class="form-label" style="font-weight: 600; color: var(--text-muted); font-size: 0.8rem; text-transform: uppercase;">Status Kawin</label>
+                            <div style="font-size: 0.95rem; color: var(--text-dark);" id="view_status_kawin">-</div>
+                        </div>
+                        <div class="col-sm-6">
+                            <label class="form-label" style="font-weight: 600; color: var(--text-muted); font-size: 0.8rem; text-transform: uppercase;">Status Karyawan</label>
+                            <div style="font-size: 0.95rem; color: var(--text-dark);" id="view_status_karyawan">-</div>
+                        </div>
+                        <div class="col-sm-6">
+                            <label class="form-label" style="font-weight: 600; color: var(--text-muted); font-size: 0.8rem; text-transform: uppercase;">Tanggal Bergabung</label>
+                            <div style="font-size: 0.95rem; color: var(--text-dark);" id="view_tanggal_masuk">-</div>
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label" style="font-weight: 600; color: var(--text-muted); font-size: 0.8rem; text-transform: uppercase;">Status Aktif</label>
+                            <div style="font-size: 0.95rem; color: var(--text-dark);" id="view_is_active">-</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer" style="border-top: 1.5px solid var(--border); padding: 1rem; background: #fafbfc;">
+                <button type="button" class="btn-outline-hrms" data-bs-dismiss="modal">Tutup</button>
+                <div style="display: flex; gap: 0.5rem;">
+                    <button class="btn-sm-action btn-edit" id="btnEditFromView" onclick="editKaryawanFromView()">
+                        <i class="bi bi-pencil"></i> Edit
+                    </button>
+                    <button class="btn-sm-action btn-del" id="btnDeleteFromView" onclick="deleteKaryawanFromView()">
+                        <i class="bi bi-trash"></i> Hapus
+                    </button>
+                </div>
             </div>
         </div>
     </div>
@@ -1143,141 +1328,194 @@
 
 
 <!-- ══════════════════════════════════════════════════════════ -->
-<!--  MODAL 6: RIWAYAT JABATAN                                  -->
+<!--  MODAL: HISTORY DATA KARYAWAN                              -->
 <!-- ══════════════════════════════════════════════════════════ -->
 <div class="modal fade" id="modalRiwayat" tabindex="-1">
     <div class="modal-dialog modal-xl modal-dialog-scrollable">
         <div class="modal-content">
             <div class="modal-header">
-                <h5 class="modal-title">📈 Riwayat Jabatan</h5>
+                <h5 class="modal-title">📈 History Data Karyawan</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
             <div class="modal-body">
-                <div class="modal-tabs">
-                    <button class="modal-tab active" onclick="switchTab(this, 'riwayat-list')"><i class="bi bi-table me-1"></i> Semua Riwayat</button>
-                    <button class="modal-tab" onclick="switchTab(this, 'riwayat-form')"><i class="bi bi-plus-circle me-1"></i> Catat Perubahan</button>
+                
+                <!-- Error Display Area -->
+                <div id="riwayat-errors" style="display: none;" class="alert alert-danger mb-3">
+                    <i class="bi bi-exclamation-triangle-fill me-2"></i>
+                    <strong>Terdapat kesalahan:</strong>
+                    <ul id="riwayat-error-list" class="mb-0 mt-2"></ul>
                 </div>
 
+                <!-- Success Display Area -->
+                <div id="riwayat-success" style="display: none;" class="alert alert-success mb-3">
+                    <i class="bi bi-check-circle-fill me-2"></i>
+                    <span id="riwayat-success-message"></span>
+                </div>
+
+                <div class="modal-tabs">
+                    <button class="modal-tab active" onclick="switchTab(this, 'riwayat-list')">
+                        <i class="bi bi-table me-1"></i> Semua Riwayat
+                    </button>
+                    <button class="modal-tab" onclick="switchTab(this, 'riwayat-form')">
+                        <i class="bi bi-plus-circle me-1"></i> Catat Perubahan
+                    </button>
+                    <button class="modal-tab" onclick="switchTab(this, 'riwayat-view')" style="display: none;">
+                        <i class="bi bi-eye me-1"></i> Detail Riwayat
+                    </button>
+                </div>
+
+                <!-- TAB: Semua Riwayat (List) -->
                 <div id="riwayat-list" class="tab-pane active">
                     <div class="search-bar">
                         <div class="search-input-wrap">
                             <i class="bi bi-search"></i>
-                            <input type="text" class="form-control" placeholder="Cari nama karyawan...">
+                            <input type="text" class="form-control" placeholder="Cari NIP, nama karyawan...">
                         </div>
-                        <select class="form-select" style="width:auto;min-width:140px;">
-                            <option>Semua Tipe</option>
-                            <option>Promosi</option>
-                            <option>Mutasi</option>
-                            <option>Demosi</option>
-                            <option>Rotasi</option>
+                        <select class="form-select" style="width:auto;min-width:160px;" onchange="filterByTipePerubahan(this)">
+                            <option value="">Semua Tipe</option>
+                            <option value="promosi">Promosi</option>
+                            <option value="mutasi">Mutasi</option>
+                            <option value="demosi">Demosi</option>
+                            <option value="rotasi">Rotasi</option>
                         </select>
                         <button class="btn-primary-hrms" onclick="switchTabById('riwayat-form')"><i class="bi bi-plus-lg"></i> Catat</button>
                     </div>
                     <div class="table-responsive">
                         <table class="table table-hrms table-borderless">
                             <thead>
-                                <tr><th>Tanggal</th><th>Karyawan</th><th>Tipe</th><th>Jabatan Lama</th><th>Jabatan Baru</th><th>Golongan</th><th>Unit</th><th>Keterangan</th><th>Aksi</th></tr>
+                                <tr>
+                                    <th>NIP</th><th>Nama</th><th>Tipe Perubahan</th><th>Detail Perubahan</th>
+                                    <th>Tanggal Efektif</th><th>Aksi</th>
+                                </tr>
                             </thead>
                             <tbody>
                                 @forelse($riwayatJabatans as $riwayat)
                                 <tr>
-                                    <td style="font-size:.78rem;white-space:nowrap;">{{ $riwayat->tgl_efektif ? $riwayat->tgl_efektif->format('d/m/Y') : '-' }}</td>
-                                    <td><strong>{{ $riwayat->karyawan->nama_karyawan }}</strong></td>
+                                    <td style="font-size:.75rem;font-weight:600;">{{ $riwayat->nip ?? $riwayat->karyawan->nip }}</td>
+                                    <td><strong>{{ $riwayat->nama ?? $riwayat->karyawan->nama_karyawan }}</strong></td>
                                     <td><span class="badge-aktif" style="background:rgba(0,146,180,0.1);color:var(--primary);border-color:rgba(0,146,180,0.25);">{{ ucfirst($riwayat->jenis_perubahan) }}</span></td>
-                                    <td style="font-size:.8rem;">{{ $riwayat->jabatan_lama ?? '-' }}</td>
-                                    <td style="font-size:.8rem;font-weight:700;">{{ $riwayat->jabatan_baru }}</td>
-                                    <td><span class="badge-permanent">{{ $riwayat->golonganBaruRelation->kode_golongan }}</span></td>
-                                    <td style="font-size:.78rem;">{{ $riwayat->karyawan->unit->nama_pt }}</td>
-                                    <td style="font-size:.78rem;color:var(--text-muted);">{{ $riwayat->catatan ?? '-' }}</td>
+                                    <td style="font-size:.8rem;">{{ $riwayat->detail_perubahan ?? '-' }}</td>
+                                    <td style="font-size:.78rem;white-space:nowrap;">{{ $riwayat->tgl_efektif ? $riwayat->tgl_efektif->format('d/m/Y') : '-' }}</td>
                                     <td>
                                         <div class="d-flex gap-1">
-                                            <button class="btn-sm-action btn-edit" onclick="editRiwayat({{ $riwayat->id }})">
-                                                <i class="bi bi-pencil"></i>
+                                            <button class="btn-sm-action btn-view" onclick="viewRiwayat({{ $riwayat->id }})" title="Lihat detail">
+                                                <i class="bi bi-eye"></i> View
                                             </button>
-                                            <form action="{{ route('personal-admin.riwayat.destroy', $riwayat) }}" method="POST" style="display:inline;">
-                                                @csrf
-                                                @method('DELETE')
-                                                <button type="submit" class="btn-sm-action btn-del" onclick="return confirm('Yakin ingin menghapus riwayat ini?')">
-                                                    <i class="bi bi-trash"></i>
-                                                </button>
-                                            </form>
                                         </div>
                                     </td>
                                 </tr>
                                 @empty
-                                <tr><td colspan="9" class="text-center py-4 text-muted">Tidak ada data riwayat jabatan</td></tr>
+                                <tr><td colspan="6" class="text-center py-4 text-muted">Tidak ada data riwayat</td></tr>
                                 @endforelse
                             </tbody>
                         </table>
                     </div>
                 </div>
 
+                <!-- TAB: Catat Perubahan (Form) -->
                 <div id="riwayat-form" class="tab-pane">
-                    <form action="{{ route('personal-admin.riwayat.store') }}" method="POST">
+                    <form id="formRiwayat" action="{{ route('personal-admin.riwayat.store') }}" method="POST">
                         @csrf
-                        <div class="modal-section-title">Catat Perubahan Jabatan</div>
-                        <div class="row g-3">
-                            <div class="col-sm-6">
-                                <label class="form-label">Karyawan <span class="text-danger">*</span></label>
-                                <select name="id_karyawan" class="form-select" required onchange="onKaryawanSelected(this)">
-                                    <option value="">-- Pilih Karyawan --</option>
+                        <div class="modal-section-title">Catat Perubahan Data Karyawan</div>
+                        
+                        <!-- STEP 1: Pilih Karyawan -->
+                        <div class="row g-3 mb-4">
+                            <div class="col-12">
+                                <label class="form-label">Pilih Karyawan <span class="text-danger">*</span></label>
+                                <select name="id_karyawan" id="selectKaryawan" class="form-select" required onchange="onKaryawanSelected(this)">
+                                    <option value="">-- Pilih Karyawan (NIP - Nama) --</option>
                                     @foreach($karyawans as $k)
-                                        <option value="{{ $k->id }}">{{ $k->nama_karyawan }}</option>
+                                        <option value="{{ $k->id }}">{{ $k->nip }} - {{ $k->nama_karyawan }}</option>
                                     @endforeach
                                 </select>
-                            </div>
-                            <div class="col-sm-6">
-                                <label class="form-label">Tipe Perubahan <span class="text-danger">*</span></label>
-                                <select name="jenis_perubahan" class="form-select" required>
-                                    <option value="">-- Pilih Tipe --</option>
-                                    <option value="promosi">Promosi</option>
-                                    <option value="mutasi">Mutasi</option>
-                                    <option value="demosi">Demosi</option>
-                                    <option value="rotasi">Rotasi</option>
-                                </select>
-                            </div>
-                            <div class="col-sm-6">
-                                <label class="form-label">Jabatan Lama</label>
-                                <input type="text" name="jabatan_lama" class="form-control" placeholder="Opsional">
-                            </div>
-                            <div class="col-sm-6">
-                                <label class="form-label">Jabatan Baru <span class="text-danger">*</span></label>
-                                <input type="text" name="jabatan_baru" class="form-control" placeholder="Manager Produksi" required>
-                            </div>
-                            <div class="col-sm-4">
-                                <label class="form-label">Golongan Lama</label>
-                                <select name="golongan_lama" class="form-select">
-                                    <option value="">-- Pilih --</option>
-                                    @foreach($golongans as $gol)
-                                        <option value="{{ $gol->id }}">{{ $gol->kode_golongan }}</option>
-                                    @endforeach
-                                </select>
-                            </div>
-                            <div class="col-sm-4">
-                                <label class="form-label">Golongan Baru <span class="text-danger">*</span></label>
-                                <select name="golongan_baru" class="form-select" required>
-                                    <option value="">-- Pilih --</option>
-                                    @foreach($golongans as $gol)
-                                        <option value="{{ $gol->id }}">{{ $gol->kode_golongan }}</option>
-                                    @endforeach
-                                </select>
-                            </div>
-                            <div class="col-sm-4">
-                                <label class="form-label">Tanggal Efektif <span class="text-danger">*</span></label>
-                                <input type="date" name="tgl_efektif" class="form-control" required>
-                            </div>
-                            <div class="col-sm-6">
-                                <label class="form-label">No. SK</label>
-                                <input type="text" name="nomor_sk" class="form-control" placeholder="SK/2024/XXX">
-                            </div>
-                            <div class="col-sm-6">
-                                <label class="form-label">Keterangan</label>
-                                <input type="text" name="catatan" class="form-control" placeholder="Keterangan singkat">
                             </div>
                         </div>
-                        <div class="d-flex gap-2 mt-4">
-                            <button type="submit" class="btn-primary-hrms"><i class="bi bi-check-lg"></i> Simpan Riwayat</button>
-                            <button type="button" class="btn-outline-hrms" onclick="switchTabById('riwayat-list');resetRiwayatForm()">Batal</button>
+
+                        <!-- HIDDEN: Divider yang muncul setelah karyawan dipilih -->
+                        <div id="dividerKaryawanSelected" style="display:none;">
+                            <hr style="border: 1px dashed var(--border); margin: 2rem 0;">
+                            
+                            <!-- STEP 2 & 3: Current Data vs Proposed Data (Side by side) -->
+                            <div class="row g-4" id="containerCompareView" style="display:none;">
+                                <!-- LEFT: Current Data (Read-only) -->
+                                <div class="col-lg-6">
+                                    <div style="background: #f8fbfc; padding: 1.5rem; border-radius: 12px; border: 1.5px solid var(--primary-light);">
+                                        <h6 style="font-weight: 700; color: var(--primary); margin-bottom: 1rem;">
+                                            <i class="bi bi-check-circle me-2"></i> Current Status (Existing Data)
+                                        </h6>
+                                        <div class="row g-2" id="containerCurrentData" style="font-size: 0.85rem;">
+                                            <!-- Filled by JavaScript -->
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- RIGHT: Proposed Data (Editable) -->
+                                <div class="col-lg-6">
+                                    <div style="background: #f5f9fc; padding: 1.5rem; border-radius: 12px; border: 1.5px solid var(--primary-light);">
+                                        <h6 style="font-weight: 700; color: var(--primary); margin-bottom: 1rem;">
+                                            <i class="bi bi-pencil-square me-2"></i> Proposed Status (New Data)
+                                        </h6>
+                                        
+                                        <!-- STEP 4: Form untuk user isi data baru -->
+                                        <div class="row g-2">
+                                            <div class="col-12">
+                                                <label class="form-label" style="font-size: 0.8rem; font-weight: 700;">Tipe Perubahan <span class="text-danger">*</span></label>
+                                                <select name="jenis_perubahan" class="form-select form-select-sm" required>
+                                                    <option value="">-- Pilih --</option>
+                                                    <option value="promosi">Promosi</option>
+                                                    <option value="mutasi">Mutasi</option>
+                                                    <option value="demosi">Demosi</option>
+                                                    <option value="rotasi">Rotasi</option>
+                                                </select>
+                                            </div>
+                                            <div class="col-12">
+                                                <label class="form-label" style="font-size: 0.8rem; font-weight: 700;">Detail Perubahan <span class="text-danger">*</span></label>
+                                                <input type="text" name="detail_perubahan" class="form-control form-control-sm" placeholder="Promosi Golongan, Mutasi Unit, dll" required>
+                                            </div>
+                                            <div class="col-12">
+                                                <label class="form-label" style="font-size: 0.8rem; font-weight: 700;">Jabatan Baru <span class="text-danger">*</span></label>
+                                                <input type="text" name="jabatan_baru" class="form-control form-control-sm" required>
+                                            </div>
+                                            <div class="col-12">
+                                                <label class="form-label" style="font-size: 0.8rem; font-weight: 700;">Golongan Baru <span class="text-danger">*</span></label>
+                                                <select name="golongan_baru" class="form-select form-select-sm" required>
+                                                    <option value="">-- Pilih --</option>
+                                                    @foreach($golongans as $gol)
+                                                        <option value="{{ $gol->id }}">{{ $gol->kode_golongan }} — {{ $gol->nama_golongan }}</option>
+                                                    @endforeach
+                                                </select>
+                                            </div>
+                                            <div class="col-12">
+                                                <label class="form-label" style="font-size: 0.8rem; font-weight: 700;">Tanggal Efektif <span class="text-danger">*</span></label>
+                                                <input type="date" name="tgl_efektif" class="form-control form-control-sm" required>
+                                            </div>
+                                            <div class="col-12">
+                                                <label class="form-label" style="font-size: 0.8rem; font-weight: 700;">No. SK</label>
+                                                <input type="text" name="nomor_sk" class="form-control form-control-sm" placeholder="SK/2024/XXX">
+                                            </div>
+                                            <div class="col-12">
+                                                <label class="form-label" style="font-size: 0.8rem; font-weight: 700;">Keterangan</label>
+                                                <textarea name="catatan" class="form-control form-control-sm" rows="2" placeholder="Keterangan singkat"></textarea>
+                                            </div>
+                                            <div class="col-12">
+                                                <label class="form-label" style="font-size: 0.8rem; font-weight: 700;">Golongan Lama</label>
+                                                <input type="hidden" name="golongan_lama" id="inputGolonganLama">
+                                                <input type="text" class="form-control form-control-sm" id="displayGolonganLama" disabled>
+                                            </div>
+                                            <div class="col-12">
+                                                <label class="form-label" style="font-size: 0.8rem; font-weight: 700;">Jabatan Lama</label>
+                                                <input type="text" name="jabatan_lama" class="form-control form-control-sm" id="inputJabatanLama" disabled>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- STEP 5: Submit Buttons (appears after karyawan selected) -->
+                            <div class="d-flex gap-2 mt-4" id="containerFormButtons" style="display:none;">
+                                <button type="submit" class="btn-primary-hrms"><i class="bi bi-check-lg"></i> Simpan Perubahan</button>
+                                <button type="button" class="btn-outline-hrms" onclick="resetRiwayatForm();switchTabById('riwayat-list')">Batal</button>
+                            </div>
                         </div>
                     </form>
                 </div>
@@ -1300,6 +1538,12 @@ function switchTab(btn, targetId) {
     const pane = modal.querySelector('#' + targetId);
     if (pane) pane.classList.add('active');
     
+    // Hide Edit tab if switching away from it
+    if (targetId === 'karyawan-list' || targetId === 'karyawan-tambah') {
+        const editTabBtn = document.getElementById('btnEditTab');
+        if (editTabBtn) editTabBtn.style.display = 'none';
+    }
+    
     // Reset karyawan form when switching to it (for create mode)
     if (targetId === 'karyawan-form') {
         resetKaryawanForm();
@@ -1319,6 +1563,12 @@ function switchTabById(targetId) {
             btn.classList.add('active');
         }
     });
+    
+    // Hide Edit tab if switching away from it
+    if (targetId === 'karyawan-list' || targetId === 'karyawan-tambah') {
+        const editTabBtn = document.getElementById('btnEditTab');
+        if (editTabBtn) editTabBtn.style.display = 'none';
+    }
     
     // Reset karyawan form when switching to it (for create mode)
     if (targetId === 'karyawan-form') {
@@ -1424,31 +1674,126 @@ let editingPosisi = null;
 let editingKendaraan = null;
 let editingRiwayat = null;
 let editingKontrak = null;
+let currentViewKaryawanId = null;
+
+// ── KARYAWAN VIEW/EDIT/DELETE ─────────────────────────────
+function viewKaryawan(id) {
+    currentViewKaryawanId = id;
+    
+    // Fetch karyawan data via AJAX using the view endpoint
+    fetch(`/personal-admin/karyawan/${id}/view`)
+        .then(response => {
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            return response.json();
+        })
+        .then(result => {
+            if (!result.data) {
+                throw new Error('Data tidak ditemukan dalam response');
+            }
+            
+            const karyawan = result.data;
+            
+            // Populate view modal with data
+            document.getElementById('view_nip').textContent = karyawan.nip || '-';
+            document.getElementById('view_nama_karyawan').textContent = karyawan.nama_karyawan || '-';
+            document.getElementById('view_nik').textContent = karyawan.nik || '-';
+            document.getElementById('view_tanggal_lahir').textContent = karyawan.tanggal_lahir || '-';
+            document.getElementById('view_jenis_kelamin').textContent = karyawan.jenis_kelamin || '-';
+            document.getElementById('view_nomor_telepon').textContent = karyawan.nomor_telepon || '-';
+            document.getElementById('view_email').textContent = karyawan.email || '-';
+            document.getElementById('view_alamat').textContent = karyawan.alamat || '-';
+            
+            // Data Kepegawaian
+            document.getElementById('view_golongan').textContent = karyawan.golongan || '-';
+            document.getElementById('view_jabatan').textContent = karyawan.jabatan || '-';
+            document.getElementById('view_unit').textContent = karyawan.unit || '-';
+            document.getElementById('view_status_kawin').textContent = karyawan.status_kawin || '-';
+            document.getElementById('view_status_karyawan').textContent = karyawan.status_karyawan || '-';
+            document.getElementById('view_tanggal_masuk').textContent = karyawan.tanggal_masuk || '-';
+            document.getElementById('view_is_active').textContent = karyawan.is_active || '-';
+            
+            // Show the modal
+            // Show Edit tab button when viewing a karyawan
+            document.getElementById('btnEditTab').style.display = 'inline-block';
+            
+            const modal = new bootstrap.Modal(document.getElementById('modalViewKaryawan'));
+            modal.show();
+        })
+        .catch(error => {
+            console.error('Error fetching karyawan data:', error);
+            alert('Gagal mengambil data karyawan: ' + error.message);
+        });
+}
+
+function editKaryawanFromView() {
+    if (!currentViewKaryawanId) {
+        alert('ID karyawan tidak ditemukan');
+        return;
+    }
+    
+    // Close view modal
+    const viewModal = bootstrap.Modal.getInstance(document.getElementById('modalViewKaryawan'));
+    if (viewModal) viewModal.hide();
+    
+    // Open main karyawan modal and switch to edit tab
+    const mainModal = new bootstrap.Modal(document.getElementById('modalKaryawan'));
+    mainModal.show();
+    
+    // Call the existing editKaryawan function
+    setTimeout(() => {
+        editKaryawan(currentViewKaryawanId);
+    }, 300);
+}
+
+function deleteKaryawanFromView() {
+    if (!currentViewKaryawanId) {
+        alert('ID karyawan tidak ditemukan');
+        return;
+    }
+    
+    if (confirm('Yakin ingin menonaktifkan karyawan ini? Data akan disimpan ke archive.')) {
+        // Get CSRF token from meta tag
+        const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
+        
+        // Create and submit delete form using fetch
+        fetch(`/personal-admin/karyawan/${currentViewKaryawanId}`, {
+            method: 'DELETE',
+            headers: {
+                'X-CSRF-TOKEN': csrfToken,
+                'Content-Type': 'application/json',
+            }
+        })
+        .then(response => {
+            if (response.ok) {
+                // Redirect or reload on success
+                window.location.href = '/personal-admin/dashboard';
+            }
+        })
+        .catch(error => {
+            console.error('Error deleting karyawan:', error);
+            alert('Gagal menonaktifkan karyawan');
+        });
+    }
+}
 
 // ── KARYAWAN CRUD ─────────────────────────────────────────
 function editKaryawan(id) {
     editingKaryawan = id;
-    switchTabById('karyawan-form');
+    switchTabById('karyawan-edit');
     
     // Fetch karyawan data via AJAX
     fetch(`/personal-admin/karyawan/${id}`)
         .then(response => response.json())
         .then(result => {
             const karyawan = result.data;
-            const form = document.querySelector('#karyawan-form form');
+            const form = document.querySelector('#formEditKaryawan');
             
             if (form) {
                 form.action = `/personal-admin/karyawan/${id}`;
-                let methodInput = form.querySelector('input[name="_method"]');
-                if (!methodInput) {
-                    methodInput = document.createElement('input');
-                    methodInput.type = 'hidden';
-                    methodInput.name = '_method';
-                    form.appendChild(methodInput);
-                }
-                methodInput.value = 'PUT';
                 
-                // Populate ONLY identity fields (editable during update)
+                // Populate identity fields (editable)
                 form.querySelector('input[name="nip"]').value = karyawan.nip || '';
                 form.querySelector('input[name="nama_karyawan"]').value = karyawan.nama_karyawan || '';
                 form.querySelector('input[name="nik"]').value = karyawan.nik || '';
@@ -1458,7 +1803,7 @@ function editKaryawan(id) {
                 form.querySelector('input[name="email"]').value = karyawan.email || '';
                 form.querySelector('textarea[name="alamat"]').value = karyawan.alamat || '';
                 
-                // Populate kepegawaian fields but disable them
+                // Populate kepegawaian fields (disabled, read-only)
                 form.querySelector('select[name="id_golongan"]').value = karyawan.id_golongan || '';
                 form.querySelector('input[name="jabatan"]').value = karyawan.jabatan || '';
                 form.querySelector('select[name="id_unit"]').value = karyawan.id_unit || '';
@@ -1466,24 +1811,6 @@ function editKaryawan(id) {
                 form.querySelector('select[name="id_status_karyawan"]').value = karyawan.id_status_karyawan || '';
                 form.querySelector('input[name="tanggal_masuk"]').value = karyawan.tanggal_masuk || '';
                 form.querySelector('select[name="is_active"]').value = karyawan.is_active ? '1' : '0';
-                
-                // Disable kepegawaian fields during edit
-                const kepegawaianFields = form.querySelectorAll('.kepegawaian-field');
-                kepegawaianFields.forEach(field => {
-                    field.disabled = true;
-                    field.style.backgroundColor = '#f8f9fa';
-                    field.style.color = '#6c757d';
-                    field.removeAttribute('required'); // Remove required validation for disabled fields
-                });
-                
-                // Show edit notices
-                const editNotices = form.querySelectorAll('.edit-only-notice');
-                editNotices.forEach(notice => {
-                    notice.style.display = 'block';
-                });
-                
-                const submitBtn = form.querySelector('button[type="submit"]');
-                if (submitBtn) submitBtn.innerHTML = '<i class="bi bi-check-lg"></i> Update Data';
             }
         })
         .catch(error => {
@@ -1492,16 +1819,21 @@ function editKaryawan(id) {
         });
 }
 
-function resetKaryawanForm() {
+function resetEditForm() {
     editingKaryawan = null;
-    const form = document.querySelector('#karyawan-form form');
+    const form = document.querySelector('#formEditKaryawan');
     if (form) {
-        form.action = '/personal-admin/karyawan';
         form.reset();
-        const methodInput = form.querySelector('input[name="_method"]');
-        if (methodInput) methodInput.remove();
-        const submitBtn = form.querySelector('button[type="submit"]');
-        if (submitBtn) submitBtn.innerHTML = '<i class="bi bi-check-lg"></i> Simpan Data';
+        switchTabById('karyawan-list');
+    }
+}
+
+// ── RESET TAMBAH FORM ──────────────────────────────────────
+function resetTambahForm() {
+    const form = document.querySelector('#karyawan-tambah form');
+    if (form) {
+        form.reset();
+        switchTabById('karyawan-list');
     }
 }
 
@@ -1667,33 +1999,6 @@ function resetRiwayatForm() {
     }
 }
 
-// ── AUTO-POPULATE RIWAYAT FORM ────────────────────────────
-function onKaryawanSelected(selectElement) {
-    const karyawanId = selectElement.value;
-    const form = selectElement.closest('form');
-    
-    if (!karyawanId) {
-        // Clear jabatan_lama and golongan_lama if no karyawan selected
-        form.querySelector('input[name="jabatan_lama"]').value = '';
-        form.querySelector('select[name="golongan_lama"]').value = '';
-        return;
-    }
-    
-    // Fetch current employee data
-    fetch(`/personal-admin/employee-current/${karyawanId}`)
-        .then(response => response.json())
-        .then(result => {
-            const employee = result.data;
-            
-            // Auto-populate jabatan_lama and golongan_lama
-            form.querySelector('input[name="jabatan_lama"]').value = employee.current_jabatan;
-            form.querySelector('select[name="golongan_lama"]').value = employee.current_golongan_id || '';
-        })
-        .catch(error => {
-            console.error('Error fetching employee current data:', error);
-        });
-}
-
 // ── KONTRAK CRUD ──────────────────────────────────────────
 function editKontrak(id) {
     editingKontrak = id;
@@ -1746,6 +2051,209 @@ function resetKontrakForm() {
         if (submitBtn) submitBtn.innerHTML = '<i class="bi bi-check-lg"></i> Simpan Kontrak';
     }
 }
+
+// ── RIWAYAT JABATAN / HISTORY DATA KARYAWAN ────────────────
+function onKaryawanSelected(selectElement) {
+    const karyawanId = selectElement.value;
+    
+    if (!karyawanId) {
+        // Hide compare view and buttons if no karyawan selected
+        document.getElementById('containerCompareView').style.display = 'none';
+        document.getElementById('containerFormButtons').style.display = 'none';
+        document.getElementById('dividerKaryawanSelected').style.display = 'none';
+        return;
+    }
+
+    // Show the divider and containers
+    document.getElementById('dividerKaryawanSelected').style.display = 'block';
+    
+    // Fetch employee current data
+    fetch(`/personal-admin/riwayat/karyawan/${karyawanId}/data`)
+        .then(response => response.json())
+        .then(result => {
+            const karyawan = result.data;
+            
+            // Store current data for later use
+            window.currentKaryawanData = karyawan;
+            
+            // Populate current data (left panel)
+            const currentDataContainer = document.getElementById('containerCurrentData');
+            currentDataContainer.innerHTML = `
+                <div class="col-12 mb-2"><strong>${karyawan.nip} - ${karyawan.nama_karyawan}</strong></div>
+                <div class="col-6"><label style="font-weight: 600; font-size: 0.75rem;">Jabatan:</label><div style="font-size: 0.8rem;">${karyawan.jabatan || '-'}</div></div>
+                <div class="col-6"><label style="font-weight: 600; font-size: 0.75rem;">Golongan:</label><div style="font-size: 0.8rem;">${karyawan.golongan_nama || '-'}</div></div>
+                <div class="col-6"><label style="font-weight: 600; font-size: 0.75rem;">Unit/PT:</label><div style="font-size: 0.8rem;">${karyawan.unit_nama || '-'}</div></div>
+                <div class="col-6"><label style="font-weight: 600; font-size: 0.75rem;">Status Karyawan:</label><div style="font-size: 0.8rem;">${karyawan.status_karyawan_nama || '-'}</div></div>
+                <div class="col-6"><label style="font-weight: 600; font-size: 0.75rem;">Status Kawin:</label><div style="font-size: 0.8rem;">${karyawan.status_kawin_nama || '-'}</div></div>
+                <div class="col-6"><label style="font-weight: 600; font-size: 0.75rem;">Status:</label><div style="font-size: 0.8rem;">${karyawan.is_active ? 'Aktif' : 'Nonaktif'}</div></div>
+            `;
+            
+            // Populate proposed data fields dynamically
+            populateProposedDataFields(karyawan);
+            
+            // Show compare view and buttons
+            document.getElementById('containerCompareView').style.display = 'flex';
+            document.getElementById('containerFormButtons').style.display = 'flex';
+        })
+        .catch(error => {
+            console.error('Error fetching karyawan data:', error);
+            alert('Gagal mengambil data karyawan');
+        });
+}
+
+function resetRiwayatForm() {
+    const form = document.getElementById('formRiwayat');
+    if (form) {
+        form.reset();
+        document.getElementById('containerCompareView').style.display = 'none';
+        document.getElementById('containerFormButtons').style.display = 'none';
+        document.getElementById('dividerKaryawanSelected').style.display = 'none';
+    }
+}
+
+function viewRiwayat(id) {
+    // Fetch riwayat data and show in a modal (View modal)
+    fetch(`/personal-admin/riwayat/${id}/view`)
+        .then(response => response.json())
+        .then(result => {
+            const riwayat = result.data;
+            // Display in a view modal showing current_data vs proposed_data comparison
+            alert('View riwayat: ' + JSON.stringify(riwayat));
+            // TODO: Create a dedicated view modal for this
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('Gagal mengambil data riwayat');
+        });
+}
+
+function filterByTipePerubahan(selectElement) {
+    const tipe = selectElement.value;
+    const rows = document.querySelectorAll('#tblRiwayat tbody tr');
+    
+    rows.forEach(row => {
+        if (!tipe) {
+            row.style.display = '';
+        } else {
+            const tipeCellText = row.cells[1]?.textContent.toLowerCase() || '';
+            row.style.display = tipeCellText.includes(tipe.toLowerCase()) ? '' : 'none';
+        }
+    });
+}
+
+// ── NEW RIWAYAT FUNCTIONS ─────────────────────────────────────
+function populateProposedDataFields(karyawan) {
+    const proposedContainer = document.getElementById('proposedDataFields');
+    
+    proposedContainer.innerHTML = `
+        <div class="col-12">
+            <label class="form-label" style="font-size: 0.8rem; font-weight: 700;">Jabatan Baru <span class="text-danger">*</span></label>
+            <input type="text" name="jabatan_baru" class="form-control form-control-sm" value="${karyawan.jabatan || ''}" required>
+        </div>
+        <div class="col-12">
+            <label class="form-label" style="font-size: 0.8rem; font-weight: 700;">Golongan Baru <span class="text-danger">*</span></label>
+            <select name="golongan_baru" class="form-select form-select-sm" required>
+                <option value="">-- Pilih --</option>
+                @foreach($golongans as $gol)
+                    <option value="{{ $gol->id }}" ${karyawan.id_golongan == {{ $gol->id }} ? 'selected' : ''}>{{ $gol->kode_golongan }} — {{ $gol->nama_golongan }}</option>
+                @endforeach
+            </select>
+        </div>
+        <div class="col-12">
+            <label class="form-label" style="font-size: 0.8rem; font-weight: 700;">Unit / PT Baru <span class="text-danger">*</span></label>
+            <select name="unit_baru" class="form-select form-select-sm" required>
+                <option value="">-- Pilih --</option>
+                @foreach($units as $unit)
+                    <option value="{{ $unit->id }}" ${karyawan.id_unit == {{ $unit->id }} ? 'selected' : ''}>{{ $unit->nama_pt }}</option>
+                @endforeach
+            </select>
+        </div>
+        <div class="col-12">
+            <label class="form-label" style="font-size: 0.8rem; font-weight: 700;">Status Karyawan Baru</label>
+            <select name="status_karyawan_baru" class="form-select form-select-sm">
+                <option value="">-- Pilih --</option>
+                @foreach($statusKaryawans as $status)
+                    <option value="{{ $status->id }}" ${karyawan.id_status_karyawan == {{ $status->id }} ? 'selected' : ''}>{{ $status->nama_status }}</option>
+                @endforeach
+            </select>
+        </div>
+        
+        <!-- Hidden fields for old data -->
+        <input type="hidden" name="nip" value="${karyawan.nip}">
+        <input type="hidden" name="nama" value="${karyawan.nama_karyawan}">
+        <input type="hidden" name="jabatan_lama" value="${karyawan.jabatan || ''}">
+        <input type="hidden" name="golongan_lama" value="${karyawan.id_golongan || ''}">
+        <input type="hidden" name="unit_lama" value="${karyawan.id_unit || ''}">
+        <input type="hidden" name="status_karyawan_lama" value="${karyawan.id_status_karyawan || ''}">
+    `;
+}
+
+function filterRiwayatTable(input) {
+    const searchTerm = input.value.toLowerCase();
+    const rows = document.querySelectorAll('#tblRiwayat tbody tr');
+    
+    rows.forEach(row => {
+        const nipNama = row.cells[0]?.textContent.toLowerCase() || '';
+        const tipePerubahan = row.cells[1]?.textContent.toLowerCase() || '';
+        const detailPerubahan = row.cells[2]?.textContent.toLowerCase() || '';
+        
+        const matches = nipNama.includes(searchTerm) || 
+                       tipePerubahan.includes(searchTerm) || 
+                       detailPerubahan.includes(searchTerm);
+        
+        row.style.display = matches ? '' : 'none';
+    });
+}
+
+// Handle tipe_perubahan change to populate detail_perubahan options
+document.addEventListener('DOMContentLoaded', function() {
+
+    // ── FIX: Reset modal saat ditutup ─────────────────────
+    document.querySelectorAll('.modal').forEach(function(modal) {
+        modal.addEventListener('hidden.bs.modal', function() {
+            // Blur semua focused element
+            this.querySelectorAll('*').forEach(el => { try { el.blur(); } catch(e) {} });
+            
+            // Reset ke tab pertama
+            const tabs = this.querySelectorAll('.modal-tab');
+            const panes = this.querySelectorAll('.tab-pane');
+            tabs.forEach(t => t.classList.remove('active'));
+            panes.forEach(p => p.classList.remove('active'));
+            if (tabs[0]) tabs[0].classList.add('active');
+            if (panes[0]) panes[0].classList.add('active');
+            
+            // Sembunyikan edit tab karyawan
+            const editTab = document.getElementById('btnEditTab');
+            if (editTab) editTab.style.display = 'none';
+        });
+    });
+
+    // Handle tipe_perubahan change
+    const tipePerubahanSelect = document.querySelector('select[name="tipe_perubahan"]');
+    const detailPerubahanSelect = document.querySelector('select[name="detail_perubahan"]');
+    
+    if (tipePerubahanSelect && detailPerubahanSelect) {
+        tipePerubahanSelect.addEventListener('change', function() {
+            const tipe = this.value;
+            detailPerubahanSelect.innerHTML = '<option value="">-- Pilih --</option>';
+            
+            const detailOptions = {
+                'Rotasi': ['Rotasi Unit', 'Rotasi Departemen', 'Rotasi Lokasi Kerja'],
+                'Promosi': ['Promosi Golongan', 'Promosi Jabatan', 'Promosi Golongan dan Jabatan'],
+                'Terminasi': ['Pensiun', 'Resign', 'PHK', 'Kontrak Berakhir']
+            };
+            
+            if (detailOptions[tipe]) {
+                detailOptions[tipe].forEach(option => {
+                    const optionElement = document.createElement('option');
+                    optionElement.value = option;
+                    optionElement.textContent = option;
+                    detailPerubahanSelect.appendChild(optionElement);
+                });
+            }
+        });
+    }
+});
 </script>
 </body>
 </html>

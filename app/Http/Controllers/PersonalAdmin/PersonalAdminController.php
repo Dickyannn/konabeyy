@@ -7,6 +7,7 @@ use App\Models\EmployeeKaryawan;
 use App\Models\EmployeePosition;
 use App\Models\EmployeeFasilitasKendaraan;
 use App\Models\EmployeeRiwayatJabatan;
+use App\Models\ObsMasterDataKaryawan;
 use App\Models\MasterGolongan;
 use App\Models\MasterUnitPt;
 use App\Models\MasterCostCenter;
@@ -136,6 +137,50 @@ class PersonalAdminController extends Controller
         ]);
     }
 
+    public function karyawanView(EmployeeKaryawan $karyawan)
+    {
+        $data = $karyawan->load(['golongan', 'unit', 'statusKaryawan', 'statusKawin', 'atasan']);
+        
+        // Build golongan string with proper null handling
+        $golonganStr = '';
+        if ($data->golongan) {
+            $golonganStr = $data->golongan->kode_golongan . ' — ' . $data->golongan->nama_golongan;
+        }
+        
+        // Handle jenis_kelamin
+        $jenisKelaminStr = '';
+        if ($data->jenis_kelamin) {
+            $jenisKelaminStr = $data->jenis_kelamin === 'L' ? 'Laki-laki' : 'Perempuan';
+        }
+        
+        return response()->json([
+            'data' => [
+                // Identitas Karyawan
+                'nip'              => $data->nip ?: '-',
+                'nama_karyawan'    => $data->nama_karyawan ?: '-',
+                'nik'              => $data->nik ?: '-',
+                'tanggal_lahir'    => $data->tanggal_lahir ? $data->tanggal_lahir->format('d/m/Y') : '-',
+                'jenis_kelamin'    => $jenisKelaminStr ?: '-',
+                'nomor_telepon'    => $data->nomor_telepon ?: '-',
+                'email'            => $data->email ?: '-',
+                'alamat'           => $data->alamat ?: '-',
+                
+                // Data Kepegawaian
+                'golongan'         => $golonganStr ?: '-',
+                'golongan_kode'    => $data->golongan?->kode_golongan ?: '-',
+                'jabatan'          => $data->jabatan ?: '-',
+                'unit'             => $data->unit?->nama_pt ?: '-',
+                'status_kawin'     => $data->statusKawin?->deskripsi ?: '-',
+                'status_karyawan'  => $data->statusKaryawan?->nama_status ?: '-',
+                'tanggal_masuk'    => $data->tanggal_masuk ? $data->tanggal_masuk->format('d/m/Y') : '-',
+                'is_active'        => $data->is_active ? 'Aktif' : 'Nonaktif',
+                
+                // For edit/delete buttons
+                'id'               => $data->id,
+            ]
+        ]);
+    }
+
     public function karyawanStore(Request $request)
     {
         $data = $request->validate([
@@ -145,7 +190,7 @@ class PersonalAdminController extends Controller
             'tanggal_lahir'    => 'nullable|date',
             'jenis_kelamin'    => 'nullable|in:L,P',
             'nomor_telepon'    => 'nullable|string|max:20',
-            'email'            => 'nullable|email|max:100',
+            'email'            => 'nullable|email|max:100|unique:employee_karyawan,email',
             'alamat'           => 'nullable|string',
             'id_golongan'      => 'required|integer|exists:master_golongan,id',
             'jabatan'          => 'required|string|max:150',
@@ -180,21 +225,82 @@ class PersonalAdminController extends Controller
             'tanggal_lahir'    => 'nullable|date',
             'jenis_kelamin'    => 'nullable|in:L,P',
             'nomor_telepon'    => 'nullable|string|max:20',
-            'email'            => 'nullable|email|max:100',
+            'email'            => "nullable|email|max:100|unique:employee_karyawan,email,{$karyawan->id}",
             'alamat'           => 'nullable|string',
         ]);
 
-        $old = $karyawan->toArray();
-        
-        // Only update identity fields - keep existing kepegawaian data
-        $karyawan->update($data);
+        // STEP 1 & 2: Save snapshot of old data (before_update) to obs_master_data_karyawan
+        $oldKaryawanData = $karyawan->toArray();
+        ObsMasterDataKaryawan::create([
+            'id_karyawan'          => $karyawan->id,
+            'action_type'          => 'before_update',
+            'change_reason'        => 'current',
+            'nip'                  => $oldKaryawanData['nip'],
+            'nik'                  => $oldKaryawanData['nik'],
+            'npwp'                 => $oldKaryawanData['npwp'],
+            'nama_karyawan'        => $oldKaryawanData['nama_karyawan'],
+            'tanggal_lahir'        => $oldKaryawanData['tanggal_lahir'],
+            'jenis_kelamin'        => $oldKaryawanData['jenis_kelamin'],
+            'alamat'               => $oldKaryawanData['alamat'],
+            'email'                => $oldKaryawanData['email'],
+            'nomor_telepon'        => $oldKaryawanData['nomor_telepon'],
+            'bpjs_kesehatan_number' => $oldKaryawanData['bpjs_kesehatan_number'],
+            'bpjs_tk_number'       => $oldKaryawanData['bpjs_tk_number'],
+            'tanggal_masuk'        => $oldKaryawanData['tanggal_masuk'],
+            'tanggal_keluar'       => $oldKaryawanData['tanggal_keluar'],
+            'id_status_karyawan'   => $oldKaryawanData['id_status_karyawan'],
+            'id_status_kawin'      => $oldKaryawanData['id_status_kawin'],
+            'id_golongan'          => $oldKaryawanData['id_golongan'],
+            'jabatan'              => $oldKaryawanData['jabatan'],
+            'id_unit'              => $oldKaryawanData['id_unit'],
+            'id_atasan'            => $oldKaryawanData['id_atasan'],
+            'foto_path'            => $oldKaryawanData['foto_path'],
+            'is_active'            => $oldKaryawanData['is_active'],
+            'created_by'           => auth()->id(),
+            'notes'                => 'Snapshot data sebelum perubahan',
+        ]);
 
+        // STEP 3 & 4: Update employee_karyawan and save snapshot of new data (after_update)
+        $karyawan->update($data);
+        
+        // Get updated data
+        $newKaryawanData = $karyawan->fresh()->toArray();
+        ObsMasterDataKaryawan::create([
+            'id_karyawan'          => $karyawan->id,
+            'action_type'          => 'after_update',
+            'change_reason'        => 'proposed',
+            'nip'                  => $newKaryawanData['nip'],
+            'nik'                  => $newKaryawanData['nik'],
+            'npwp'                 => $newKaryawanData['npwp'],
+            'nama_karyawan'        => $newKaryawanData['nama_karyawan'],
+            'tanggal_lahir'        => $newKaryawanData['tanggal_lahir'],
+            'jenis_kelamin'        => $newKaryawanData['jenis_kelamin'],
+            'alamat'               => $newKaryawanData['alamat'],
+            'email'                => $newKaryawanData['email'],
+            'nomor_telepon'        => $newKaryawanData['nomor_telepon'],
+            'bpjs_kesehatan_number' => $newKaryawanData['bpjs_kesehatan_number'],
+            'bpjs_tk_number'       => $newKaryawanData['bpjs_tk_number'],
+            'tanggal_masuk'        => $newKaryawanData['tanggal_masuk'],
+            'tanggal_keluar'       => $newKaryawanData['tanggal_keluar'],
+            'id_status_karyawan'   => $newKaryawanData['id_status_karyawan'],
+            'id_status_kawin'      => $newKaryawanData['id_status_kawin'],
+            'id_golongan'          => $newKaryawanData['id_golongan'],
+            'jabatan'              => $newKaryawanData['jabatan'],
+            'id_unit'              => $newKaryawanData['id_unit'],
+            'id_atasan'            => $newKaryawanData['id_atasan'],
+            'foto_path'            => $newKaryawanData['foto_path'],
+            'is_active'            => $newKaryawanData['is_active'],
+            'created_by'           => auth()->id(),
+            'notes'                => 'Snapshot data setelah perubahan',
+        ]);
+
+        // Log audit
         AuditLog::create([
             'id_user'    => auth()->id(),
             'action'     => 'UPDATE_KARYAWAN',
             'table_name' => 'employee_karyawan',
             'record_id'  => $karyawan->id,
-            'old_data'   => json_encode($old),
+            'old_data'   => json_encode($oldKaryawanData),
             'new_data'   => json_encode($data),
         ]);
 
@@ -203,6 +309,39 @@ class PersonalAdminController extends Controller
 
     public function karyawanDestroy(EmployeeKaryawan $karyawan)
     {
+        // Save snapshot data to obs_master_data_karyawan before delete
+        $karyawanData = $karyawan->toArray();
+        
+        ObsMasterDataKaryawan::create([
+            'id_karyawan'          => $karyawan->id,
+            'action_type'          => 'delete',
+            'change_reason'        => 'Penghapusan data karyawan',
+            'nip'                  => $karyawanData['nip'],
+            'nik'                  => $karyawanData['nik'],
+            'npwp'                 => $karyawanData['npwp'],
+            'nama_karyawan'        => $karyawanData['nama_karyawan'],
+            'tanggal_lahir'        => $karyawanData['tanggal_lahir'],
+            'jenis_kelamin'        => $karyawanData['jenis_kelamin'],
+            'alamat'               => $karyawanData['alamat'],
+            'email'                => $karyawanData['email'],
+            'nomor_telepon'        => $karyawanData['nomor_telepon'],
+            'bpjs_kesehatan_number' => $karyawanData['bpjs_kesehatan_number'],
+            'bpjs_tk_number'       => $karyawanData['bpjs_tk_number'],
+            'tanggal_masuk'        => $karyawanData['tanggal_masuk'],
+            'tanggal_keluar'       => $karyawanData['tanggal_keluar'],
+            'id_status_karyawan'   => $karyawanData['id_status_karyawan'],
+            'id_status_kawin'      => $karyawanData['id_status_kawin'],
+            'id_golongan'          => $karyawanData['id_golongan'],
+            'jabatan'              => $karyawanData['jabatan'],
+            'id_unit'              => $karyawanData['id_unit'],
+            'id_atasan'            => $karyawanData['id_atasan'],
+            'foto_path'            => $karyawanData['foto_path'],
+            'is_active'            => $karyawanData['is_active'],
+            'created_by'           => auth()->id(),
+            'notes'                => 'Snapshot data sebelum penghapusan',
+        ]);
+
+        // Soft delete: set is_active = false
         $karyawan->update(['is_active' => false]);
 
         AuditLog::create([
@@ -323,32 +462,92 @@ class PersonalAdminController extends Controller
     public function riwayatStore(Request $request)
     {
         $data = $request->validate([
-            'id_karyawan'      => 'required|integer|exists:employee_karyawan,id',
-            'jenis_perubahan'  => 'required|in:promosi,mutasi,demosi,rotasi',
-            'jabatan_lama'     => 'nullable|string|max:150',
-            'jabatan_baru'     => 'required|string|max:150',
-            'golongan_lama'    => 'nullable|integer|exists:master_golongan,id',
-            'golongan_baru'    => 'required|integer|exists:master_golongan,id',
-            'tgl_efektif'      => 'required|date',
-            'nomor_sk'         => 'nullable|string|max:100',
-            'catatan'          => 'nullable|string',
+            'id_karyawan'         => 'required|integer|exists:employee_karyawan,id',
+            'jenis_perubahan'     => 'required|in:promosi,mutasi,demosi,rotasi',
+            'detail_perubahan'    => 'required|string|max:200',
+            'jabatan_lama'        => 'nullable|string|max:150',
+            'jabatan_baru'        => 'required|string|max:150',
+            'golongan_lama'       => 'nullable|integer|exists:master_golongan,id',
+            'golongan_baru'       => 'required|integer|exists:master_golongan,id',
+            'tgl_efektif'         => 'required|date',
+            'nomor_sk'            => 'nullable|string|max:100',
+            'catatan'             => 'nullable|string',
         ]);
 
         // Get the employee
         $karyawan = EmployeeKaryawan::find($data['id_karyawan']);
         
+        // STEP 1: Prepare current_data from current employee state
+        $currentData = [
+            'nip' => $karyawan->nip,
+            'nama_karyawan' => $karyawan->nama_karyawan,
+            'nik' => $karyawan->nik,
+            'tanggal_lahir' => $karyawan->tanggal_lahir,
+            'jenis_kelamin' => $karyawan->jenis_kelamin,
+            'alamat' => $karyawan->alamat,
+            'email' => $karyawan->email,
+            'nomor_telepon' => $karyawan->nomor_telepon,
+            'jabatan' => $karyawan->jabatan,
+            'id_golongan' => $karyawan->id_golongan,
+            'id_unit' => $karyawan->id_unit,
+            'id_status_kawin' => $karyawan->id_status_kawin,
+            'id_status_karyawan' => $karyawan->id_status_karyawan,
+            'tanggal_masuk' => $karyawan->tanggal_masuk,
+            'is_active' => $karyawan->is_active,
+        ];
+
+        // STEP 2: Prepare proposed_data (updated values)
+        $proposedData = array_merge($currentData, [
+            'jabatan' => $data['jabatan_baru'],
+            'id_golongan' => $data['golongan_baru'],
+        ]);
+
         // Update end_date of previous riwayat jabatan records for this employee
         EmployeeRiwayatJabatan::where('id_karyawan', $data['id_karyawan'])
             ->where('end_date', '9999-12-31')
             ->update(['end_date' => \Carbon\Carbon::parse($data['tgl_efektif'])->subDay()]);
 
-        // Create new riwayat jabatan record with default end_date
+        // STEP 3: Create new riwayat jabatan record with current_data and proposed_data
         $riwayat = EmployeeRiwayatJabatan::create(array_merge($data, [
+            'nip' => $karyawan->nip,
+            'nama' => $karyawan->nama_karyawan,
+            'jabatan_lama' => $karyawan->jabatan,
+            'current_data' => $currentData,
+            'proposed_data' => $proposedData,
             'end_date' => '9999-12-31', // Default end date
             'created_by' => auth()->user()->nama ?? 'system'
         ]));
 
-        // Update employee_karyawan table with new golongan and jabatan
+        // STEP 4: Save to obs_master_data_karyawan for audit trail
+        ObsMasterDataKaryawan::create([
+            'id_karyawan'          => $karyawan->id,
+            'action_type'          => 'history_update',
+            'change_reason'        => $data['detail_perubahan'],
+            'nip'                  => $karyawan->nip,
+            'nik'                  => $karyawan->nik,
+            'npwp'                 => $karyawan->npwp,
+            'nama_karyawan'        => $karyawan->nama_karyawan,
+            'tanggal_lahir'        => $karyawan->tanggal_lahir,
+            'jenis_kelamin'        => $karyawan->jenis_kelamin,
+            'alamat'               => $karyawan->alamat,
+            'email'                => $karyawan->email,
+            'nomor_telepon'        => $karyawan->nomor_telepon,
+            'bpjs_kesehatan_number' => $karyawan->bpjs_kesehatan_number,
+            'bpjs_tk_number'       => $karyawan->bpjs_tk_number,
+            'tanggal_masuk'        => $karyawan->tanggal_masuk,
+            'id_status_karyawan'   => $karyawan->id_status_karyawan,
+            'id_status_kawin'      => $karyawan->id_status_kawin,
+            'id_golongan'          => $karyawan->id_golongan,
+            'jabatan'              => $karyawan->jabatan,
+            'id_unit'              => $karyawan->id_unit,
+            'id_atasan'            => $karyawan->id_atasan,
+            'foto_path'            => $karyawan->foto_path,
+            'is_active'            => $karyawan->is_active,
+            'created_by'           => auth()->id(),
+            'notes'                => "History Update: {$data['detail_perubahan']}",
+        ]);
+
+        // STEP 5: Update employee_karyawan table with proposed_data
         $karyawan->update([
             'id_golongan' => $data['golongan_baru'],
             'jabatan' => $data['jabatan_baru']
@@ -361,7 +560,7 @@ class PersonalAdminController extends Controller
             $data
         );
 
-        return back()->with('success', "Riwayat jabatan berhasil dicatat dan data karyawan diupdate.");
+        return back()->with('success', "Riwayat perubahan data berhasil dicatat dan data karyawan diupdate.");
     }
 
     public function riwayatShow(EmployeeRiwayatJabatan $riwayat)
@@ -369,6 +568,36 @@ class PersonalAdminController extends Controller
         return response()->json([
             'data' => $riwayat->load(['karyawan', 'golonganLamaRelation', 'golonganBaruRelation'])
         ]);
+    }
+
+    /**
+     * Get employee current data for riwayat history form
+     * Returns current employee data to be used as current_data in the form
+     */
+    public function riwayatGetKaryawanData(EmployeeKaryawan $karyawan)
+    {
+        $data = [
+            'id' => $karyawan->id,
+            'nip' => $karyawan->nip,
+            'nama_karyawan' => $karyawan->nama_karyawan,
+            'nik' => $karyawan->nik,
+            'tanggal_lahir' => $karyawan->tanggal_lahir,
+            'jenis_kelamin' => $karyawan->jenis_kelamin,
+            'alamat' => $karyawan->alamat,
+            'email' => $karyawan->email,
+            'nomor_telepon' => $karyawan->nomor_telepon,
+            'jabatan' => $karyawan->jabatan,
+            'id_golongan' => $karyawan->id_golongan,
+            'id_unit' => $karyawan->id_unit,
+            'id_status_kawin' => $karyawan->id_status_kawin,
+            'id_status_karyawan' => $karyawan->id_status_karyawan,
+            'tanggal_masuk' => $karyawan->tanggal_masuk,
+            'is_active' => $karyawan->is_active,
+            'golongan_nama' => $karyawan->golongan?->nama_golongan ?? '-',
+            'unit_nama' => $karyawan->unit?->nama_pt ?? '-',
+        ];
+
+        return response()->json(['data' => $data]);
     }
 
     public function riwayatUpdate(Request $request, EmployeeRiwayatJabatan $riwayat)

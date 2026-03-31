@@ -135,6 +135,7 @@ Route::middleware(['auth', 'role:personal_admin'])->prefix('personal-admin')->na
 
     // Data Karyawan
     Route::get('/karyawan', [PersonalAdminController::class, 'karyawanIndex'])->name('karyawan.index');
+    Route::get('/karyawan/{karyawan}/view', [PersonalAdminController::class, 'karyawanView'])->name('karyawan.view');
     Route::get('/karyawan/{karyawan}', [PersonalAdminController::class, 'karyawanShow'])->name('karyawan.show');
     Route::post('/karyawan', [PersonalAdminController::class, 'karyawanStore'])->name('karyawan.store');
     Route::put('/karyawan/{karyawan}', [PersonalAdminController::class, 'karyawanUpdate'])->name('karyawan.update');

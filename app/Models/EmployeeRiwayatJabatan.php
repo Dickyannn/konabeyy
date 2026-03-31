@@ -18,6 +18,13 @@ class EmployeeRiwayatJabatan extends Model
 
     protected $fillable = [
         'id_karyawan',
+        'nip',
+        'nama',
+        'tipe_perubahan',
+        'detail_perubahan',
+        'current_data',
+        'proposed_data',
+        'tanggal_efektif',
         'jabatan_lama',
         'jabatan_baru',
         'golongan_lama',
@@ -32,7 +39,10 @@ class EmployeeRiwayatJabatan extends Model
 
     protected $casts = [
         'tgl_efektif' => 'datetime',
+        'tanggal_efektif' => 'datetime',
         'end_date' => 'datetime',
+        'current_data' => 'json',
+        'proposed_data' => 'json',
     ];
 
     public function karyawan(): BelongsTo
