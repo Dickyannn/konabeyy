@@ -3,6 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="csrf-token" content="{{ csrf_token() }}">
     <title>Personal Administration — HR Portal</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
@@ -904,6 +905,7 @@
                     </div>
                 </div>
             </div>
+        </div>
             <div class="modal-footer" style="border-top: 1.5px solid var(--border); padding: 1rem; background: #fafbfc;">
                 <button type="button" class="btn-outline-hrms" data-bs-dismiss="modal">Tutup</button>
                 <div style="display: flex; gap: 0.5rem;">
@@ -1359,7 +1361,7 @@
                     <button class="modal-tab" onclick="switchTab(this, 'riwayat-form')">
                         <i class="bi bi-plus-circle me-1"></i> Catat Perubahan
                     </button>
-                    <button class="modal-tab" onclick="switchTab(this, 'riwayat-view')" style="display: none;">
+                    <button class="modal-tab" id="riwayat-view-tab" onclick="switchTab(this, 'riwayat-view')" style="display: none;">
                         <i class="bi bi-eye me-1"></i> Detail Riwayat
                     </button>
                 </div>
@@ -1460,28 +1462,54 @@
                                         <div class="row g-2">
                                             <div class="col-12">
                                                 <label class="form-label" style="font-size: 0.8rem; font-weight: 700;">Tipe Perubahan <span class="text-danger">*</span></label>
-                                                <select name="jenis_perubahan" class="form-select form-select-sm" required>
-                                                    <option value="">-- Pilih --</option>
-                                                    <option value="promosi">Promosi</option>
-                                                    <option value="mutasi">Mutasi</option>
-                                                    <option value="demosi">Demosi</option>
-                                                    <option value="rotasi">Rotasi</option>
+                                                <select name="jenis_perubahan" id="selectTipePerubahan" class="form-select form-select-sm" required onchange="updateDetailPerubahan(this)">
+                                                    <option value="">-- Pilih Tipe Perubahan --</option>
+                                                    <option value="Actual Conversion">Actual Conversion</option>
+                                                    <option value="Change of Status">Change of Status</option>
+                                                    <option value="Contract Extension">Contract Extension</option>
+                                                    <option value="Demotion">Demotion</option>
+                                                    <option value="New Hire">New Hire</option>
+                                                    <option value="Pass Probation">Pass Probation</option>
+                                                    <option value="Promotion">Promotion</option>
+                                                    <option value="Service Extension">Service Extension</option>
+                                                    <option value="Termination">Termination</option>
+                                                    <option value="Transfer">Transfer</option>
                                                 </select>
                                             </div>
                                             <div class="col-12">
                                                 <label class="form-label" style="font-size: 0.8rem; font-weight: 700;">Detail Perubahan <span class="text-danger">*</span></label>
-                                                <input type="text" name="detail_perubahan" class="form-control form-control-sm" placeholder="Promosi Golongan, Mutasi Unit, dll" required>
+                                                <select name="detail_perubahan" id="selectDetailPerubahan" class="form-select form-select-sm" required>
+                                                    <option value="">-- Pilih Tipe Perubahan Terlebih Dahulu --</option>
+                                                </select>
                                             </div>
                                             <div class="col-12">
-                                                <label class="form-label" style="font-size: 0.8rem; font-weight: 700;">Jabatan Baru <span class="text-danger">*</span></label>
-                                                <input type="text" name="jabatan_baru" class="form-control form-control-sm" required>
+                                                <label class="form-label" style="font-size: 0.8rem; font-weight: 700;">Jabatan Baru</label>
+                                                <input type="text" name="jabatan_baru" class="form-control form-control-sm" placeholder="Isi jika ada perubahan jabatan">
                                             </div>
                                             <div class="col-12">
-                                                <label class="form-label" style="font-size: 0.8rem; font-weight: 700;">Golongan Baru <span class="text-danger">*</span></label>
-                                                <select name="golongan_baru" class="form-select form-select-sm" required>
-                                                    <option value="">-- Pilih --</option>
+                                                <label class="form-label" style="font-size: 0.8rem; font-weight: 700;">Golongan Baru</label>
+                                                <select name="golongan_baru" class="form-select form-select-sm">
+                                                    <option value="">-- Pilih jika ada perubahan --</option>
                                                     @foreach($golongans as $gol)
                                                         <option value="{{ $gol->id }}">{{ $gol->kode_golongan }} — {{ $gol->nama_golongan }}</option>
+                                                    @endforeach
+                                                </select>
+                                            </div>
+                                            <div class="col-12">
+                                                <label class="form-label" style="font-size: 0.8rem; font-weight: 700;">Unit / PT Baru</label>
+                                                <select name="unit_baru" class="form-select form-select-sm">
+                                                    <option value="">-- Pilih jika ada perubahan --</option>
+                                                    @foreach($units as $unit)
+                                                        <option value="{{ $unit->id }}">{{ $unit->nama_pt }}</option>
+                                                    @endforeach
+                                                </select>
+                                            </div>
+                                            <div class="col-12">
+                                                <label class="form-label" style="font-size: 0.8rem; font-weight: 700;">Status Karyawan Baru</label>
+                                                <select name="status_karyawan_baru" class="form-select form-select-sm">
+                                                    <option value="">-- Pilih jika ada perubahan --</option>
+                                                    @foreach($statusKaryawans as $status)
+                                                        <option value="{{ $status->id }}">{{ $status->nama_status }}</option>
                                                     @endforeach
                                                 </select>
                                             </div>
@@ -1497,15 +1525,11 @@
                                                 <label class="form-label" style="font-size: 0.8rem; font-weight: 700;">Keterangan</label>
                                                 <textarea name="catatan" class="form-control form-control-sm" rows="2" placeholder="Keterangan singkat"></textarea>
                                             </div>
-                                            <div class="col-12">
-                                                <label class="form-label" style="font-size: 0.8rem; font-weight: 700;">Golongan Lama</label>
-                                                <input type="hidden" name="golongan_lama" id="inputGolonganLama">
-                                                <input type="text" class="form-control form-control-sm" id="displayGolonganLama" disabled>
-                                            </div>
-                                            <div class="col-12">
-                                                <label class="form-label" style="font-size: 0.8rem; font-weight: 700;">Jabatan Lama</label>
-                                                <input type="text" name="jabatan_lama" class="form-control form-control-sm" id="inputJabatanLama" disabled>
-                                            </div>
+                                            <!-- Hidden fields for old data -->
+                                            <input type="hidden" name="jabatan_lama" id="inputJabatanLama">
+                                            <input type="hidden" name="golongan_lama" id="inputGolonganLama">
+                                            <input type="hidden" name="unit_lama" id="inputUnitLama">
+                                            <input type="hidden" name="status_karyawan_lama" id="inputStatusKaryawanLama">
                                         </div>
                                     </div>
                                 </div>
@@ -1783,39 +1807,106 @@ function editKaryawan(id) {
     editingKaryawan = id;
     switchTabById('karyawan-edit');
     
+    // Show loading state
+    const form = document.querySelector('#formEditKaryawan');
+    if (form) {
+        // Disable form while loading, but remember which fields were originally disabled
+        const inputs = form.querySelectorAll('input, select, textarea');
+        const originallyDisabled = new Map();
+        inputs.forEach(input => {
+            originallyDisabled.set(input, input.disabled);
+            input.disabled = true;
+        });
+        
+        // Store the map for later use
+        form._originallyDisabled = originallyDisabled;
+    }
+    
     // Fetch karyawan data via AJAX
     fetch(`/personal-admin/karyawan/${id}`)
-        .then(response => response.json())
+        .then(response => {
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            return response.json();
+        })
         .then(result => {
+            console.log('Fetched karyawan data:', result); // Debug log
             const karyawan = result.data;
-            const form = document.querySelector('#formEditKaryawan');
             
             if (form) {
                 form.action = `/personal-admin/karyawan/${id}`;
                 
-                // Populate identity fields (editable)
-                form.querySelector('input[name="nip"]').value = karyawan.nip || '';
-                form.querySelector('input[name="nama_karyawan"]').value = karyawan.nama_karyawan || '';
-                form.querySelector('input[name="nik"]').value = karyawan.nik || '';
-                form.querySelector('input[name="tanggal_lahir"]').value = karyawan.tanggal_lahir || '';
-                form.querySelector('select[name="jenis_kelamin"]').value = karyawan.jenis_kelamin || '';
-                form.querySelector('input[name="nomor_telepon"]').value = karyawan.nomor_telepon || '';
-                form.querySelector('input[name="email"]').value = karyawan.email || '';
-                form.querySelector('textarea[name="alamat"]').value = karyawan.alamat || '';
+                // Restore original disabled state for all fields
+                const originallyDisabled = form._originallyDisabled;
+                const inputs = form.querySelectorAll('input, select, textarea');
+                inputs.forEach(input => {
+                    input.disabled = originallyDisabled.get(input) || false;
+                });
                 
-                // Populate kepegawaian fields (disabled, read-only)
-                form.querySelector('select[name="id_golongan"]').value = karyawan.id_golongan || '';
-                form.querySelector('input[name="jabatan"]').value = karyawan.jabatan || '';
-                form.querySelector('select[name="id_unit"]').value = karyawan.id_unit || '';
-                form.querySelector('select[name="id_status_kawin"]').value = karyawan.id_status_kawin || '';
-                form.querySelector('select[name="id_status_karyawan"]').value = karyawan.id_status_karyawan || '';
-                form.querySelector('input[name="tanggal_masuk"]').value = karyawan.tanggal_masuk || '';
-                form.querySelector('select[name="is_active"]').value = karyawan.is_active ? '1' : '0';
+                // Populate identity fields (editable)
+                const nipInput = form.querySelector('input[name="nip"]');
+                if (nipInput) nipInput.value = karyawan.nip || '';
+                
+                const namaInput = form.querySelector('input[name="nama_karyawan"]');
+                if (namaInput) namaInput.value = karyawan.nama_karyawan || '';
+                
+                const nikInput = form.querySelector('input[name="nik"]');
+                if (nikInput) nikInput.value = karyawan.nik || '';
+                
+                const tanggalLahirInput = form.querySelector('input[name="tanggal_lahir"]');
+                if (tanggalLahirInput) {
+                    tanggalLahirInput.value = karyawan.tanggal_lahir || '';
+                    console.log('Set tanggal_lahir to:', karyawan.tanggal_lahir); // Debug log
+                }
+                
+                const jenisKelaminSelect = form.querySelector('select[name="jenis_kelamin"]');
+                if (jenisKelaminSelect) jenisKelaminSelect.value = karyawan.jenis_kelamin || '';
+                
+                const teleponInput = form.querySelector('input[name="nomor_telepon"]');
+                if (teleponInput) teleponInput.value = karyawan.nomor_telepon || '';
+                
+                const emailInput = form.querySelector('input[name="email"]');
+                if (emailInput) emailInput.value = karyawan.email || '';
+                
+                const alamatTextarea = form.querySelector('textarea[name="alamat"]');
+                if (alamatTextarea) alamatTextarea.value = karyawan.alamat || '';
+                
+                // Populate kepegawaian fields (these should remain disabled as per the HTML)
+                const golonganSelect = form.querySelector('select[name="id_golongan"]');
+                if (golonganSelect) golonganSelect.value = karyawan.id_golongan || '';
+                
+                const jabatanInput = form.querySelector('input[name="jabatan"]');
+                if (jabatanInput) jabatanInput.value = karyawan.jabatan || '';
+                
+                const unitSelect = form.querySelector('select[name="id_unit"]');
+                if (unitSelect) unitSelect.value = karyawan.id_unit || '';
+                
+                const statusKawinSelect = form.querySelector('select[name="id_status_kawin"]');
+                if (statusKawinSelect) statusKawinSelect.value = karyawan.id_status_kawin || '';
+                
+                const statusKaryawanSelect = form.querySelector('select[name="id_status_karyawan"]');
+                if (statusKaryawanSelect) statusKaryawanSelect.value = karyawan.id_status_karyawan || '';
+                
+                const tanggalMasukInput = form.querySelector('input[name="tanggal_masuk"]');
+                if (tanggalMasukInput) tanggalMasukInput.value = karyawan.tanggal_masuk || '';
+                
+                const isActiveSelect = form.querySelector('select[name="is_active"]');
+                if (isActiveSelect) isActiveSelect.value = karyawan.is_active ? '1' : '0';
             }
         })
         .catch(error => {
             console.error('Error fetching karyawan data:', error);
-            alert('Gagal mengambil data karyawan');
+            alert('Gagal mengambil data karyawan: ' + error.message);
+            
+            // Restore original disabled state on error
+            if (form && form._originallyDisabled) {
+                const originallyDisabled = form._originallyDisabled;
+                const inputs = form.querySelectorAll('input, select, textarea');
+                inputs.forEach(input => {
+                    input.disabled = originallyDisabled.get(input) || false;
+                });
+            }
         });
 }
 
@@ -1824,8 +1915,59 @@ function resetEditForm() {
     const form = document.querySelector('#formEditKaryawan');
     if (form) {
         form.reset();
+        
+        // Reset any stored disabled state
+        if (form._originallyDisabled) {
+            delete form._originallyDisabled;
+        }
+        
         switchTabById('karyawan-list');
     }
+}
+
+// Debug function to check field states
+function debugFormFields() {
+    const form = document.querySelector('#formEditKaryawan');
+    if (!form) {
+        console.log('Form not found');
+        return;
+    }
+    
+    console.log('=== FORM FIELD STATES ===');
+    
+    // Identity fields (should be editable)
+    const identityFields = [
+        'nip', 'nama_karyawan', 'nik', 'tanggal_lahir', 
+        'jenis_kelamin', 'nomor_telepon', 'email', 'alamat'
+    ];
+    
+    console.log('Identity Fields (should be editable):');
+    identityFields.forEach(fieldName => {
+        const field = form.querySelector(`[name="${fieldName}"]`);
+        if (field) {
+            console.log(`- ${fieldName}: disabled=${field.disabled}, value="${field.value}"`);
+        } else {
+            console.log(`- ${fieldName}: NOT FOUND`);
+        }
+    });
+    
+    // Kepegawaian fields (should be disabled)
+    const kepegawaianFields = [
+        'id_golongan', 'jabatan', 'id_unit', 'id_status_kawin', 
+        'id_status_karyawan', 'tanggal_masuk', 'is_active'
+    ];
+    
+    console.log('Kepegawaian Fields (should be disabled):');
+    kepegawaianFields.forEach(fieldName => {
+        const field = form.querySelector(`[name="${fieldName}"]`);
+        if (field) {
+            console.log(`- ${fieldName}: disabled=${field.disabled}, value="${field.value}"`);
+        } else {
+            console.log(`- ${fieldName}: NOT FOUND`);
+        }
+    });
+    
+    console.log('=== END FORM FIELD STATES ===');
 }
 
 // ── RESET TAMBAH FORM ──────────────────────────────────────
@@ -2069,8 +2211,17 @@ function onKaryawanSelected(selectElement) {
     
     // Fetch employee current data
     fetch(`/personal-admin/riwayat/karyawan/${karyawanId}/data`)
-        .then(response => response.json())
+        .then(response => {
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            return response.json();
+        })
         .then(result => {
+            if (!result.data) {
+                throw new Error('Data tidak ditemukan dalam response');
+            }
+            
             const karyawan = result.data;
             
             // Store current data for later use
@@ -2088,8 +2239,22 @@ function onKaryawanSelected(selectElement) {
                 <div class="col-6"><label style="font-weight: 600; font-size: 0.75rem;">Status:</label><div style="font-size: 0.8rem;">${karyawan.is_active ? 'Aktif' : 'Nonaktif'}</div></div>
             `;
             
-            // Populate proposed data fields dynamically
-            populateProposedDataFields(karyawan);
+            // Populate hidden fields for old data (don't pre-fill the form fields)
+            document.getElementById('inputJabatanLama').value = karyawan.jabatan || '';
+            document.getElementById('inputGolonganLama').value = karyawan.id_golongan || '';
+            document.getElementById('inputUnitLama').value = karyawan.id_unit || '';
+            document.getElementById('inputStatusKaryawanLama').value = karyawan.id_status_karyawan || '';
+            
+            // Clear all proposed data fields (they should be empty for user to fill)
+            document.querySelector('select[name="jenis_perubahan"]').value = '';
+            document.querySelector('select[name="detail_perubahan"]').innerHTML = '<option value="">-- Pilih Tipe Perubahan Terlebih Dahulu --</option>';
+            document.querySelector('input[name="jabatan_baru"]').value = '';
+            document.querySelector('select[name="golongan_baru"]').value = '';
+            document.querySelector('select[name="unit_baru"]').value = '';
+            document.querySelector('select[name="status_karyawan_baru"]').value = '';
+            document.querySelector('input[name="tgl_efektif"]').value = '';
+            document.querySelector('input[name="nomor_sk"]').value = '';
+            document.querySelector('textarea[name="catatan"]').value = '';
             
             // Show compare view and buttons
             document.getElementById('containerCompareView').style.display = 'flex';
@@ -2097,7 +2262,12 @@ function onKaryawanSelected(selectElement) {
         })
         .catch(error => {
             console.error('Error fetching karyawan data:', error);
-            alert('Gagal mengambil data karyawan');
+            alert('Gagal mengambil data karyawan: ' + error.message);
+            
+            // Hide containers on error
+            document.getElementById('containerCompareView').style.display = 'none';
+            document.getElementById('containerFormButtons').style.display = 'none';
+            document.getElementById('dividerKaryawanSelected').style.display = 'none';
         });
 }
 
@@ -2105,25 +2275,141 @@ function resetRiwayatForm() {
     const form = document.getElementById('formRiwayat');
     if (form) {
         form.reset();
+        
+        // Reset the detail perubahan dropdown
+        const detailSelect = document.getElementById('selectDetailPerubahan');
+        if (detailSelect) {
+            detailSelect.innerHTML = '<option value="">-- Pilih Tipe Perubahan Terlebih Dahulu --</option>';
+        }
+        
+        // Hide containers
         document.getElementById('containerCompareView').style.display = 'none';
         document.getElementById('containerFormButtons').style.display = 'none';
         document.getElementById('dividerKaryawanSelected').style.display = 'none';
+        
+        // Hide error/success messages
+        document.getElementById('riwayat-errors').style.display = 'none';
+        document.getElementById('riwayat-success').style.display = 'none';
     }
 }
 
 function viewRiwayat(id) {
-    // Fetch riwayat data and show in a modal (View modal)
-    fetch(`/personal-admin/riwayat/${id}/view`)
-        .then(response => response.json())
+    // Show the view tab
+    const viewTab = document.getElementById('riwayat-view-tab');
+    if (viewTab) {
+        viewTab.style.display = 'block';
+        switchTab(viewTab, 'riwayat-view');
+    }
+    
+    // Fetch riwayat data and show comparison
+    fetch(`/personal-admin/riwayat/${id}`)
+        .then(response => {
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            return response.json();
+        })
         .then(result => {
+            if (!result.data) {
+                throw new Error('Data tidak ditemukan dalam response');
+            }
+            
             const riwayat = result.data;
-            // Display in a view modal showing current_data vs proposed_data comparison
-            alert('View riwayat: ' + JSON.stringify(riwayat));
-            // TODO: Create a dedicated view modal for this
+            
+            // Create view content in the riwayat-view tab pane
+            const viewPane = document.getElementById('riwayat-view');
+            if (!viewPane) {
+                // Create the view tab pane if it doesn't exist
+                const tabContainer = document.querySelector('#modalRiwayat .modal-body');
+                const newViewPane = document.createElement('div');
+                newViewPane.id = 'riwayat-view';
+                newViewPane.className = 'tab-pane';
+                tabContainer.appendChild(newViewPane);
+            }
+            
+            const content = document.getElementById('riwayat-view');
+            if (content) {
+                content.innerHTML = `
+                    <div class="d-flex justify-content-between align-items-center mb-4">
+                        <h6 class="mb-0">Detail Riwayat Perubahan</h6>
+                        <button class="btn-outline-hrms" onclick="backToRiwayatList()">
+                            <i class="bi bi-arrow-left"></i> Kembali ke Daftar
+                        </button>
+                    </div>
+                    
+                    <div class="row g-3 mb-4">
+                        <div class="col-sm-3">
+                            <label class="form-label">NIP - Nama</label>
+                            <div class="form-control-plaintext">${riwayat.nip || '-'} - ${riwayat.nama || '-'}</div>
+                        </div>
+                        <div class="col-sm-3">
+                            <label class="form-label">Tipe Perubahan</label>
+                            <div class="form-control-plaintext">
+                                <span class="badge-aktif" style="background:rgba(0,146,180,0.1);color:var(--primary);border-color:rgba(0,146,180,0.25);">
+                                    ${riwayat.tipe_perubahan || riwayat.jenis_perubahan || '-'}
+                                </span>
+                            </div>
+                        </div>
+                        <div class="col-sm-3">
+                            <label class="form-label">Detail Perubahan</label>
+                            <div class="form-control-plaintext">${riwayat.detail_perubahan || '-'}</div>
+                        </div>
+                        <div class="col-sm-3">
+                            <label class="form-label">Tanggal Efektif</label>
+                            <div class="form-control-plaintext">${riwayat.tanggal_efektif ? formatDate(riwayat.tanggal_efektif) : (riwayat.tgl_efektif ? formatDate(riwayat.tgl_efektif) : '-')}</div>
+                        </div>
+                    </div>
+
+                    <div class="modal-section-title">Perbandingan Data</div>
+                    <div class="row g-4">
+                        <!-- Current Status (Before) -->
+                        <div class="col-lg-6">
+                            <div style="background: #f8fbfc; padding: 1.5rem; border-radius: 12px; border: 1.5px solid var(--primary-light);">
+                                <h6 style="font-weight: 700; color: var(--primary); margin-bottom: 1rem;">
+                                    <i class="bi bi-arrow-left-circle me-2"></i> Current Status (Before)
+                                </h6>
+                                <div class="row g-2" style="font-size: 0.85rem;">
+                                    ${riwayat.current_data ? renderDataComparison(riwayat.current_data) : '<div class="col-12 text-muted">Data tidak tersedia</div>'}
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Proposed Status (After) -->
+                        <div class="col-lg-6">
+                            <div style="background: #f5f9fc; padding: 1.5rem; border-radius: 12px; border: 1.5px solid var(--primary-light);">
+                                <h6 style="font-weight: 700; color: var(--primary); margin-bottom: 1rem;">
+                                    <i class="bi bi-arrow-right-circle me-2"></i> Proposed Status (After)
+                                </h6>
+                                <div class="row g-2" style="font-size: 0.85rem;">
+                                    ${riwayat.proposed_data ? renderDataComparison(riwayat.proposed_data) : '<div class="col-12 text-muted">Data tidak tersedia</div>'}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    ${riwayat.nomor_sk || riwayat.catatan ? `
+                    <div class="modal-section-title">Informasi Tambahan</div>
+                    <div class="row g-3">
+                        ${riwayat.nomor_sk ? `
+                        <div class="col-sm-6">
+                            <label class="form-label">No. SK</label>
+                            <div class="form-control-plaintext">${riwayat.nomor_sk}</div>
+                        </div>
+                        ` : ''}
+                        ${riwayat.catatan ? `
+                        <div class="col-12">
+                            <label class="form-label">Keterangan</label>
+                            <div class="form-control-plaintext">${riwayat.catatan}</div>
+                        </div>
+                        ` : ''}
+                    </div>
+                    ` : ''}
+                `;
+            }
         })
         .catch(error => {
-            console.error('Error:', error);
-            alert('Gagal mengambil data riwayat');
+            console.error('Error fetching riwayat data:', error);
+            alert('Gagal mengambil data riwayat: ' + error.message);
         });
 }
 
@@ -2205,6 +2491,99 @@ function filterRiwayatTable(input) {
     });
 }
 
+// Helper function to render data comparison
+function renderDataComparison(data) {
+    if (!data || typeof data !== 'object') {
+        return '<div class="col-12 text-muted">Data tidak tersedia</div>';
+    }
+    
+    let html = '';
+    
+    // Basic employee info
+    if (data.nip) html += `<div class="col-6"><strong>NIP:</strong><div>${data.nip}</div></div>`;
+    if (data.nama_karyawan) html += `<div class="col-6"><strong>Nama:</strong><div>${data.nama_karyawan}</div></div>`;
+    if (data.jabatan) html += `<div class="col-6"><strong>Jabatan:</strong><div>${data.jabatan}</div></div>`;
+    if (data.id_golongan) html += `<div class="col-6"><strong>Golongan ID:</strong><div>${data.id_golongan}</div></div>`;
+    if (data.id_unit) html += `<div class="col-6"><strong>Unit ID:</strong><div>${data.id_unit}</div></div>`;
+    if (data.id_status_karyawan) html += `<div class="col-6"><strong>Status Karyawan ID:</strong><div>${data.id_status_karyawan}</div></div>`;
+    if (data.tanggal_masuk) html += `<div class="col-6"><strong>Tanggal Masuk:</strong><div>${formatDate(data.tanggal_masuk)}</div></div>`;
+    if (data.is_active !== undefined) html += `<div class="col-6"><strong>Status:</strong><div>${data.is_active ? 'Aktif' : 'Nonaktif'}</div></div>`;
+    
+    return html || '<div class="col-12 text-muted">Data tidak tersedia</div>';
+}
+
+// Helper function to go back to riwayat list
+function backToRiwayatList() {
+    // Hide view tab
+    const viewTab = document.getElementById('riwayat-view-tab');
+    if (viewTab) {
+        viewTab.style.display = 'none';
+    }
+    
+    // Switch back to list tab
+    switchTabById('riwayat-list');
+}
+
+// Helper function to format date
+function formatDate(dateString) {
+    if (!dateString) return '-';
+    
+    try {
+        const date = new Date(dateString);
+        return date.toLocaleDateString('id-ID', {
+            day: '2-digit',
+            month: '2-digit', 
+            year: 'numeric'
+        });
+    } catch (e) {
+        return dateString;
+    }
+}
+
+// Function to update detail perubahan based on tipe perubahan
+function updateDetailPerubahan(selectElement) {
+    const tipePerubahan = selectElement.value;
+    const detailSelect = document.getElementById('selectDetailPerubahan');
+    
+    // Clear existing options
+    detailSelect.innerHTML = '<option value="">-- Pilih Detail Perubahan --</option>';
+    
+    // Define the action type to reason mapping
+    const actionReasons = {
+        'Actual Conversion': ['Actual Conversion'],
+        'Change of Status': ['Change of Employment Type'],
+        'Contract Extension': ['Contract Position'],
+        'Demotion': ['Poor Performance'],
+        'New Hire': ['Contract Position', 'Pensioner', 'Permanent Position'],
+        'Pass Probation': ['Permanent Position'],
+        'Promotion': ['Job Grade Promotion', 'Position Promotion'],
+        'Service Extension': ['Permanent Position'],
+        'Termination': [
+            'Cancel Join', 'Criminal Offence', 'Deceased', 'Dismissal - Major Misconduct',
+            'Dismissal - Minor Misconduct', 'End of Contract', 'Failed Probation',
+            'Long Sickness', 'Mass Termination', 'Pension', 'Poor Performance',
+            'Resign - Back to School', 'Resign - Career Opportunities', 'Resign - Family',
+            'Resign - Management', 'Resign - Medical', 'Resign - Rem & Benefits',
+            'Resign - Work Arrangements', 'Resign - Work Environment'
+        ],
+        'Transfer': [
+            'End of Covering Peer Position', 'Intra-Unit Transfer', 'Organization Restructuring',
+            'Start Covering Peer Position', 'Start of Intl. Assignment', 'Transfer between Unit',
+            'Transfer to Other Entity'
+        ]
+    };
+    
+    // Populate detail options based on selected tipe
+    if (actionReasons[tipePerubahan]) {
+        actionReasons[tipePerubahan].forEach(reason => {
+            const option = document.createElement('option');
+            option.value = reason;
+            option.textContent = reason;
+            detailSelect.appendChild(option);
+        });
+    }
+}
+
 // Handle tipe_perubahan change to populate detail_perubahan options
 document.addEventListener('DOMContentLoaded', function() {
 
@@ -2225,32 +2604,344 @@ document.addEventListener('DOMContentLoaded', function() {
             // Sembunyikan edit tab karyawan
             const editTab = document.getElementById('btnEditTab');
             if (editTab) editTab.style.display = 'none';
+            
+            // Sembunyikan view tab riwayat
+            const riwayatViewTab = document.getElementById('riwayat-view-tab');
+            if (riwayatViewTab) riwayatViewTab.style.display = 'none';
+            
+            // Reset riwayat form if this is the riwayat modal
+            if (this.id === 'modalRiwayat') {
+                resetRiwayatForm();
+            }
         });
     });
 
     // Handle tipe_perubahan change
-    const tipePerubahanSelect = document.querySelector('select[name="tipe_perubahan"]');
-    const detailPerubahanSelect = document.querySelector('select[name="detail_perubahan"]');
+    const tipePerubahanSelect = document.querySelector('select[name="jenis_perubahan"]');
     
-    if (tipePerubahanSelect && detailPerubahanSelect) {
+    if (tipePerubahanSelect) {
         tipePerubahanSelect.addEventListener('change', function() {
-            const tipe = this.value;
-            detailPerubahanSelect.innerHTML = '<option value="">-- Pilih --</option>';
+            updateDetailPerubahan(this);
+        });
+    }
+
+    // Handle riwayat form submission with AJAX
+    const riwayatForm = document.getElementById('formRiwayat');
+    if (riwayatForm) {
+        riwayatForm.addEventListener('submit', function(e) {
+            e.preventDefault();
             
-            const detailOptions = {
-                'Rotasi': ['Rotasi Unit', 'Rotasi Departemen', 'Rotasi Lokasi Kerja'],
-                'Promosi': ['Promosi Golongan', 'Promosi Jabatan', 'Promosi Golongan dan Jabatan'],
-                'Terminasi': ['Pensiun', 'Resign', 'PHK', 'Kontrak Berakhir']
-            };
+            // Hide previous errors/success messages
+            document.getElementById('riwayat-errors').style.display = 'none';
+            document.getElementById('riwayat-success').style.display = 'none';
             
-            if (detailOptions[tipe]) {
-                detailOptions[tipe].forEach(option => {
-                    const optionElement = document.createElement('option');
-                    optionElement.value = option;
-                    optionElement.textContent = option;
-                    detailPerubahanSelect.appendChild(optionElement);
-                });
-            }
+            // Get form data
+            const formData = new FormData(this);
+            
+            // Get CSRF token
+            const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
+            
+            // Submit form via AJAX
+            fetch(this.action, {
+                method: 'POST',
+                headers: {
+                    'X-CSRF-TOKEN': csrfToken,
+                },
+                body: formData
+            })
+            .then(response => {
+                if (response.ok) {
+                    return response.text().then(text => {
+                        // Check if response is JSON (error) or HTML (success redirect)
+                        try {
+                            return JSON.parse(text);
+                        } catch (e) {
+                            // HTML response means success, reload page
+                            window.location.reload();
+                            return null;
+                        }
+                    });
+                } else {
+                    return response.json();
+                }
+            })
+            .then(result => {
+                if (result && result.errors) {
+                    // Show validation errors
+                    const errorList = document.getElementById('riwayat-error-list');
+                    errorList.innerHTML = '';
+                    
+                    Object.values(result.errors).forEach(errorArray => {
+                        errorArray.forEach(error => {
+                            const li = document.createElement('li');
+                            li.textContent = error;
+                            errorList.appendChild(li);
+                        });
+                    });
+                    
+                    document.getElementById('riwayat-errors').style.display = 'block';
+                    
+                    // Scroll to top of modal to show errors
+                    document.querySelector('#modalRiwayat .modal-body').scrollTop = 0;
+                } else if (result && result.message) {
+                    // Show success message
+                    document.getElementById('riwayat-success-message').textContent = result.message;
+                    document.getElementById('riwayat-success').style.display = 'block';
+                    
+                    // Reset form and switch to list tab
+                    resetRiwayatForm();
+                    switchTabById('riwayat-list');
+                    
+                    // Reload page after short delay to show updated data
+                    setTimeout(() => {
+                        window.location.reload();
+                    }, 1500);
+                }
+            })
+            .catch(error => {
+                console.error('Error submitting riwayat form:', error);
+                
+                // Show generic error
+                const errorList = document.getElementById('riwayat-error-list');
+                errorList.innerHTML = '<li>Terjadi kesalahan saat menyimpan data. Silakan coba lagi.</li>';
+                document.getElementById('riwayat-errors').style.display = 'block';
+                
+                // Scroll to top of modal to show errors
+                document.querySelector('#modalRiwayat .modal-body').scrollTop = 0;
+            });
+        });
+    }
+
+    // Handle karyawan tambah form submission with AJAX
+    const karyawanTambahForm = document.querySelector('#karyawan-tambah form');
+    if (karyawanTambahForm) {
+        karyawanTambahForm.addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            // Get form data
+            const formData = new FormData(this);
+            
+            // Get CSRF token
+            const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
+            
+            // Submit form via AJAX
+            fetch(this.action, {
+                method: 'POST',
+                headers: {
+                    'X-CSRF-TOKEN': csrfToken,
+                },
+                body: formData
+            })
+            .then(response => {
+                if (response.ok) {
+                    return response.text().then(text => {
+                        // Check if response is JSON (error) or HTML (success redirect)
+                        try {
+                            return JSON.parse(text);
+                        } catch (e) {
+                            // HTML response means success, reload page
+                            window.location.reload();
+                            return null;
+                        }
+                    });
+                } else {
+                    return response.text().then(text => {
+                        try {
+                            return JSON.parse(text);
+                        } catch (e) {
+                            // If not JSON, create a generic error response
+                            return {
+                                errors: {
+                                    general: ['Server error: ' + response.status + ' - ' + text.substring(0, 100)]
+                                }
+                            };
+                        }
+                    });
+                }
+            })
+            .then(result => {
+                if (result && result.errors) {
+                    // Show validation errors in the main modal error area
+                    let errorHtml = '<div class="alert alert-danger alert-dismissible fade show" role="alert" style="border-radius:12px;border:1.5px solid #dc3545;">';
+                    errorHtml += '<i class="bi bi-exclamation-triangle-fill me-2"></i><strong>Terdapat kesalahan:</strong>';
+                    errorHtml += '<ul class="mb-0 mt-2">';
+                    
+                    Object.values(result.errors).forEach(errorArray => {
+                        errorArray.forEach(error => {
+                            errorHtml += `<li>${error}</li>`;
+                        });
+                    });
+                    
+                    errorHtml += '</ul>';
+                    errorHtml += '<button type="button" class="btn-close" data-bs-dismiss="alert"></button>';
+                    errorHtml += '</div>';
+                    
+                    // Insert error message at the top of the modal body
+                    const modalBody = document.querySelector('#modalKaryawan .modal-body');
+                    const existingAlert = modalBody.querySelector('.alert');
+                    if (existingAlert) {
+                        existingAlert.remove();
+                    }
+                    modalBody.insertAdjacentHTML('afterbegin', errorHtml);
+                    
+                    // Scroll to top of modal to show errors
+                    modalBody.scrollTop = 0;
+                } else if (result && result.message) {
+                    // Show success and reload
+                    window.location.reload();
+                }
+            })
+            .catch(error => {
+                console.error('Error submitting karyawan form:', error);
+                
+                // Show generic error
+                let errorHtml = '<div class="alert alert-danger alert-dismissible fade show" role="alert" style="border-radius:12px;border:1.5px solid #dc3545;">';
+                errorHtml += '<i class="bi bi-exclamation-triangle-fill me-2"></i><strong>Terjadi kesalahan saat menyimpan data. Silakan coba lagi.</strong>';
+                errorHtml += '<button type="button" class="btn-close" data-bs-dismiss="alert"></button>';
+                errorHtml += '</div>';
+                
+                // Insert error message at the top of the modal body
+                const modalBody = document.querySelector('#modalKaryawan .modal-body');
+                const existingAlert = modalBody.querySelector('.alert');
+                if (existingAlert) {
+                    existingAlert.remove();
+                }
+                modalBody.insertAdjacentHTML('afterbegin', errorHtml);
+                
+                // Scroll to top of modal to show errors
+                modalBody.scrollTop = 0;
+            });
+        });
+    }
+
+    // Handle karyawan edit form submission with AJAX
+    // AJAX form submission for edit form
+    const karyawanEditForm = document.querySelector('#formEditKaryawan');
+    if (karyawanEditForm) {
+        karyawanEditForm.addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            // Show loading state
+            const submitBtn = this.querySelector('button[type="submit"]');
+            const originalBtnText = submitBtn.innerHTML;
+            submitBtn.innerHTML = '<i class="bi bi-hourglass-split"></i> Menyimpan...';
+            submitBtn.disabled = true;
+            
+            // Get form data
+            const formData = new FormData(this);
+            
+            // Get CSRF token
+            const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
+            
+            console.log('Submitting edit form to:', this.action); // Debug log
+            
+            // Submit form via AJAX
+            fetch(this.action, {
+                method: 'POST',
+                headers: {
+                    'X-CSRF-TOKEN': csrfToken,
+                },
+                body: formData
+            })
+            .then(response => {
+                console.log('Response status:', response.status); // Debug log
+                if (response.ok) {
+                    return response.text().then(text => {
+                        // Check if response is JSON (error) or HTML (success redirect)
+                        try {
+                            const jsonResponse = JSON.parse(text);
+                            console.log('JSON response:', jsonResponse); // Debug log
+                            return jsonResponse;
+                        } catch (e) {
+                            // HTML response means success, reload page
+                            console.log('HTML response received, reloading page'); // Debug log
+                            window.location.reload();
+                            return null;
+                        }
+                    });
+                } else {
+                    return response.text().then(text => {
+                        try {
+                            return JSON.parse(text);
+                        } catch (e) {
+                            // If not JSON, create a generic error response
+                            return {
+                                errors: {
+                                    general: ['Server error: ' + response.status + ' - ' + text.substring(0, 100)]
+                                }
+                            };
+                        }
+                    });
+                }
+            })
+            .then(result => {
+                // Reset button state
+                submitBtn.innerHTML = originalBtnText;
+                submitBtn.disabled = false;
+                
+                if (result && result.errors) {
+                    console.log('Validation errors:', result.errors); // Debug log
+                    // Show validation errors in the main modal error area
+                    let errorHtml = '<div class="alert alert-danger alert-dismissible fade show" role="alert" style="border-radius:12px;border:1.5px solid #dc3545;">';
+                    errorHtml += '<i class="bi bi-exclamation-triangle-fill me-2"></i><strong>Terdapat kesalahan:</strong>';
+                    errorHtml += '<ul class="mb-0 mt-2">';
+                    
+                    Object.values(result.errors).forEach(errorArray => {
+                        errorArray.forEach(error => {
+                            errorHtml += `<li>${error}</li>`;
+                        });
+                    });
+                    
+                    errorHtml += '</ul>';
+                    errorHtml += '<button type="button" class="btn-close" data-bs-dismiss="alert"></button>';
+                    errorHtml += '</div>';
+                    
+                    // Insert error message at the top of the modal body
+                    const modalBody = document.querySelector('#modalKaryawan .modal-body');
+                    const existingAlert = modalBody.querySelector('.alert');
+                    if (existingAlert) {
+                        existingAlert.remove();
+                    }
+                    modalBody.insertAdjacentHTML('afterbegin', errorHtml);
+                    
+                    // Scroll to top of modal to show errors
+                    modalBody.scrollTop = 0;
+                } else if (result && result.success) {
+                    console.log('Success response:', result.message); // Debug log
+                    // Show success message and reload
+                    alert(result.message || 'Data berhasil diupdate');
+                    window.location.reload();
+                } else if (result && result.message) {
+                    // Show success and reload
+                    console.log('Success message:', result.message); // Debug log
+                    alert(result.message);
+                    window.location.reload();
+                }
+            })
+            .catch(error => {
+                console.error('Error submitting karyawan edit form:', error);
+                
+                // Reset button state
+                submitBtn.innerHTML = originalBtnText;
+                submitBtn.disabled = false;
+                
+                // Show generic error
+                let errorHtml = '<div class="alert alert-danger alert-dismissible fade show" role="alert" style="border-radius:12px;border:1.5px solid #dc3545;">';
+                errorHtml += '<i class="bi bi-exclamation-triangle-fill me-2"></i><strong>Terjadi kesalahan saat menyimpan data. Silakan coba lagi.</strong>';
+                errorHtml += '<button type="button" class="btn-close" data-bs-dismiss="alert"></button>';
+                errorHtml += '</div>';
+                
+                // Insert error message at the top of the modal body
+                const modalBody = document.querySelector('#modalKaryawan .modal-body');
+                const existingAlert = modalBody.querySelector('.alert');
+                if (existingAlert) {
+                    existingAlert.remove();
+                }
+                modalBody.insertAdjacentHTML('afterbegin', errorHtml);
+                
+                // Scroll to top of modal to show errors
+                modalBody.scrollTop = 0;
+            });
         });
     }
 });

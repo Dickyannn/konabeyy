@@ -29,6 +29,10 @@ class EmployeeRiwayatJabatan extends Model
         'jabatan_baru',
         'golongan_lama',
         'golongan_baru',
+        'unit_lama',
+        'unit_baru',
+        'status_karyawan_lama',
+        'status_karyawan_baru',
         'jenis_perubahan',
         'tgl_efektif',
         'end_date',
@@ -58,5 +62,25 @@ class EmployeeRiwayatJabatan extends Model
     public function golonganBaruRelation(): BelongsTo
     {
         return $this->belongsTo(MasterGolongan::class, 'golongan_baru');
+    }
+
+    public function unitLamaRelation(): BelongsTo
+    {
+        return $this->belongsTo(MasterUnitPt::class, 'unit_lama');
+    }
+
+    public function unitBaruRelation(): BelongsTo
+    {
+        return $this->belongsTo(MasterUnitPt::class, 'unit_baru');
+    }
+
+    public function statusKaryawanLamaRelation(): BelongsTo
+    {
+        return $this->belongsTo(MasterStatusKaryawan::class, 'status_karyawan_lama');
+    }
+
+    public function statusKaryawanBaruRelation(): BelongsTo
+    {
+        return $this->belongsTo(MasterStatusKaryawan::class, 'status_karyawan_baru');
     }
 }

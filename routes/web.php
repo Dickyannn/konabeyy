@@ -153,14 +153,12 @@ Route::middleware(['auth', 'role:personal_admin'])->prefix('personal-admin')->na
     Route::put('/kendaraan/{kendaraan}', [PersonalAdminController::class, 'kendaraanUpdate'])->name('kendaraan.update');
     Route::delete('/kendaraan/{kendaraan}', [PersonalAdminController::class, 'kendaraanDestroy'])->name('kendaraan.destroy');
 
-    // Riwayat Jabatan
+    // Riwayat Jabatan / History Data Karyawan
+    Route::get('/riwayat/karyawan/{karyawan}/data', [PersonalAdminController::class, 'riwayatGetKaryawanData'])->name('riwayat.karyawan.data');
     Route::get('/riwayat/{riwayat}', [PersonalAdminController::class, 'riwayatShow'])->name('riwayat.show');
     Route::post('/riwayat', [PersonalAdminController::class, 'riwayatStore'])->name('riwayat.store');
     Route::put('/riwayat/{riwayat}', [PersonalAdminController::class, 'riwayatUpdate'])->name('riwayat.update');
     Route::delete('/riwayat/{riwayat}', [PersonalAdminController::class, 'riwayatDestroy'])->name('riwayat.destroy');
-    
-    // Get employee current data for riwayat form
-    Route::get('/employee-current/{karyawan}', [PersonalAdminController::class, 'getEmployeeCurrentData'])->name('employee.current');
 });
 
 
