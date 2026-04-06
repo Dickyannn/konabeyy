@@ -1371,19 +1371,18 @@
                     <div class="search-bar">
                         <div class="search-input-wrap">
                             <i class="bi bi-search"></i>
-                            <input type="text" class="form-control" placeholder="Cari NIP, nama karyawan...">
+                            <input type="text" class="form-control" placeholder="Cari atau filter tipe..." onkeyup="filterRiwayatTable(this)">
                         </div>
-                        <select class="form-select" style="width:auto;min-width:160px;" onchange="filterByTipePerubahan(this)">
-                            <option value="">Semua Tipe</option>
-                            <option value="promosi">Promosi</option>
-                            <option value="mutasi">Mutasi</option>
-                            <option value="demosi">Demosi</option>
-                            <option value="rotasi">Rotasi</option>
+                        <select class="form-select" style="width:auto;min-width:220px;" onchange="filterRiwayatByKaryawan(this)">
+                            <option value="">-- Semua Karyawan --</option>
+                            @foreach($karyawans as $k)
+                                <option value="{{ $k->nip }}">{{ $k->nip }} - {{ $k->nama_karyawan }}</option>
+                            @endforeach
                         </select>
                         <button class="btn-primary-hrms" onclick="switchTabById('riwayat-form')"><i class="bi bi-plus-lg"></i> Catat</button>
                     </div>
                     <div class="table-responsive">
-                        <table class="table table-hrms table-borderless">
+                        <table class="table table-hrms table-borderless" id="tblRiwayat">
                             <thead>
                                 <tr>
                                     <th>NIP</th><th>Nama</th><th>Tipe Perubahan</th><th>Detail Perubahan</th>
@@ -1392,7 +1391,7 @@
                             </thead>
                             <tbody>
                                 @forelse($riwayatJabatans as $riwayat)
-                                <tr>
+                                <tr data-nip="{{ $riwayat->nip ?? $riwayat->karyawan->nip }}">
                                     <td style="font-size:.75rem;font-weight:600;">{{ $riwayat->nip ?? $riwayat->karyawan->nip }}</td>
                                     <td><strong>{{ $riwayat->nama ?? $riwayat->karyawan->nama_karyawan }}</strong></td>
                                     <td><span class="badge-aktif" style="background:rgba(0,146,180,0.1);color:var(--primary);border-color:rgba(0,146,180,0.25);">{{ ucfirst($riwayat->jenis_perubahan) }}</span></td>
@@ -1464,16 +1463,16 @@
                                                 <label class="form-label" style="font-size: 0.8rem; font-weight: 700;">Tipe Perubahan <span class="text-danger">*</span></label>
                                                 <select name="jenis_perubahan" id="selectTipePerubahan" class="form-select form-select-sm" required onchange="updateDetailPerubahan(this)">
                                                     <option value="">-- Pilih Tipe Perubahan --</option>
-                                                    <option value="Actual Conversion">Actual Conversion</option>
-                                                    <option value="Change of Status">Change of Status</option>
-                                                    <option value="Contract Extension">Contract Extension</option>
-                                                    <option value="Demotion">Demotion</option>
-                                                    <option value="New Hire">New Hire</option>
-                                                    <option value="Pass Probation">Pass Probation</option>
-                                                    <option value="Promotion">Promotion</option>
-                                                    <option value="Service Extension">Service Extension</option>
-                                                    <option value="Termination">Termination</option>
-                                                    <option value="Transfer">Transfer</option>
+                                                    <option value="promotion">Promotion</option>
+                                                    <option value="demotion">Demotion</option>
+                                                    <option value="transfer">Transfer</option>
+                                                    <option value="termination">Termination</option>
+                                                    <option value="new_hire">New Hire</option>
+                                                    <option value="contract_extension">Contract Extension</option>
+                                                    <option value="actual_conversion">Actual Conversion</option>
+                                                    <option value="change_of_status">Change of Status</option>
+                                                    <option value="pass_probation">Pass Probation</option>
+                                                    <option value="service_extension">Service Extension</option>
                                                 </select>
                                             </div>
                                             <div class="col-12">
@@ -2368,8 +2367,8 @@ function viewRiwayat(id) {
                                 <h6 style="font-weight: 700; color: var(--primary); margin-bottom: 1rem;">
                                     <i class="bi bi-arrow-left-circle me-2"></i> Current Status (Before)
                                 </h6>
-                                <div class="row g-2" style="font-size: 0.85rem;">
-                                    ${riwayat.current_data ? renderDataComparison(riwayat.current_data) : '<div class="col-12 text-muted">Data tidak tersedia</div>'}
+                                <div class="row g-2" style="font-size: 0.9rem;">
+                                    ${riwayat.current_data ? renderDetailComparison(riwayat.current_data) : '<div class="col-12 text-muted">Data tidak tersedia</div>'}
                                 </div>
                             </div>
                         </div>
@@ -2380,8 +2379,8 @@ function viewRiwayat(id) {
                                 <h6 style="font-weight: 700; color: var(--primary); margin-bottom: 1rem;">
                                     <i class="bi bi-arrow-right-circle me-2"></i> Proposed Status (After)
                                 </h6>
-                                <div class="row g-2" style="font-size: 0.85rem;">
-                                    ${riwayat.proposed_data ? renderDataComparison(riwayat.proposed_data) : '<div class="col-12 text-muted">Data tidak tersedia</div>'}
+                                <div class="row g-2" style="font-size: 0.9rem;">
+                                    ${riwayat.proposed_data ? renderDetailComparison(riwayat.proposed_data) : '<div class="col-12 text-muted">Data tidak tersedia</div>'}
                                 </div>
                             </div>
                         </div>
@@ -2413,16 +2412,32 @@ function viewRiwayat(id) {
         });
 }
 
-function filterByTipePerubahan(selectElement) {
-    const tipe = selectElement.value;
+// ── NEW RIWAYAT FILTER FUNCTIONS ──────────────────────────
+function filterRiwayatTable(input) {
+    const filter = input.value.toLowerCase();
     const rows = document.querySelectorAll('#tblRiwayat tbody tr');
     
     rows.forEach(row => {
-        if (!tipe) {
+        if (!filter) {
             row.style.display = '';
         } else {
-            const tipeCellText = row.cells[1]?.textContent.toLowerCase() || '';
-            row.style.display = tipeCellText.includes(tipe.toLowerCase()) ? '' : 'none';
+            // Search in all cells: NIP, Nama, Tipe Perubahan, Detail Perubahan
+            const rowText = row.textContent.toLowerCase();
+            row.style.display = rowText.includes(filter) ? '' : 'none';
+        }
+    });
+}
+
+function filterRiwayatByKaryawan(selectElement) {
+    const nip = selectElement.value;
+    const rows = document.querySelectorAll('#tblRiwayat tbody tr');
+    
+    rows.forEach(row => {
+        if (!nip) {
+            row.style.display = '';
+        } else {
+            const rowNip = row.getAttribute('data-nip') || '';
+            row.style.display = rowNip === nip ? '' : 'none';
         }
     });
 }
@@ -2499,17 +2514,120 @@ function renderDataComparison(data) {
     
     let html = '';
     
-    // Basic employee info
-    if (data.nip) html += `<div class="col-6"><strong>NIP:</strong><div>${data.nip}</div></div>`;
-    if (data.nama_karyawan) html += `<div class="col-6"><strong>Nama:</strong><div>${data.nama_karyawan}</div></div>`;
-    if (data.jabatan) html += `<div class="col-6"><strong>Jabatan:</strong><div>${data.jabatan}</div></div>`;
-    if (data.id_golongan) html += `<div class="col-6"><strong>Golongan ID:</strong><div>${data.id_golongan}</div></div>`;
-    if (data.id_unit) html += `<div class="col-6"><strong>Unit ID:</strong><div>${data.id_unit}</div></div>`;
-    if (data.id_status_karyawan) html += `<div class="col-6"><strong>Status Karyawan ID:</strong><div>${data.id_status_karyawan}</div></div>`;
-    if (data.tanggal_masuk) html += `<div class="col-6"><strong>Tanggal Masuk:</strong><div>${formatDate(data.tanggal_masuk)}</div></div>`;
-    if (data.is_active !== undefined) html += `<div class="col-6"><strong>Status:</strong><div>${data.is_active ? 'Aktif' : 'Nonaktif'}</div></div>`;
+    // Basic employee info with proper field handling
+    const nip = data.nip || '-';
+    const nama = data.nama || data.nama_karyawan || '-';
+    const jabatan = data.jabatan || '-';
+    const golongan = data.golongan || data.golongan_nama || (data.id_golongan ? `ID: ${data.id_golongan}` : '-');
+    const unit = data.unit || data.unit_nama || (data.id_unit ? `ID: ${data.id_unit}` : '-');
+    const statusKaryawan = data.status_karyawan || (data.id_status_karyawan ? `ID: ${data.id_status_karyawan}` : '-');
+    const tglMasuk = data.tanggal_masuk ? formatDate(data.tanggal_masuk) : '-';
+    const status = data.is_active !== undefined ? (data.is_active ? 'Aktif' : 'Nonaktif') : '-';
+    
+    html += `
+        <div class="col-12">
+            <div class="row g-2">
+                <div class="col-6">
+                    <small class="text-muted d-block">NIP</small>
+                    <strong>${nip}</strong>
+                </div>
+                <div class="col-6">
+                    <small class="text-muted d-block">Nama</small>
+                    <strong>${nama}</strong>
+                </div>
+                <div class="col-6">
+                    <small class="text-muted d-block">Jabatan</small>
+                    <strong>${jabatan}</strong>
+                </div>
+                <div class="col-6">
+                    <small class="text-muted d-block">Golongan</small>
+                    <strong>${golongan}</strong>
+                </div>
+                <div class="col-6">
+                    <small class="text-muted d-block">Unit</small>
+                    <strong>${unit}</strong>
+                </div>
+                <div class="col-6">
+                    <small class="text-muted d-block">Status</small>
+                    <strong>${status}</strong>
+                </div>
+            </div>
+        </div>
+    `;
     
     return html || '<div class="col-12 text-muted">Data tidak tersedia</div>';
+}
+
+// Helper function to render detail compaison display in nice format
+function renderDetailComparison(data) {
+    if (!data || typeof data !== 'object') {
+        return '<div class="col-12 text-muted"><small>Data tidak tersedia</small></div>';
+    }
+    
+    let html = '';
+    
+    const getDisplayValue = (val) => val && val !== '-' && val !== 'N/A' ? val : '-';
+    
+    const fields = [
+        { label: 'NIP', value: getDisplayValue(data.nip) },
+        { label: 'Nama', value: getDisplayValue(data.nama || data.nama_karyawan) },
+        { label: 'Jabatan', value: getDisplayValue(data.jabatan) },
+        { label: 'Golongan', value: getDisplayValue(data.golongan || data.golongan_nama) },
+        { label: 'Unit', value: getDisplayValue(data.unit || data.unit_nama) },
+        { label: 'Status', value: getDisplayValue(data.status_karyawan) },
+    ];
+    
+    fields.forEach(field => {
+        html += `
+            <div class="col-12 mb-2">
+                <small class="text-muted d-block" style="font-size: 0.75rem; font-weight: 600;">
+                    ${field.label}
+                </small>
+                <div style="padding: 0.5rem 0.75rem; background: rgba(255,255,255,0.6); border-radius: 6px; border-left: 3px solid var(--primary); margin-top: 0.25rem;">
+                    <strong style="color: var(--primary-dark);">${field.value}</strong>
+                </div>
+            </div>
+        `;
+    });
+    
+    return html || '<div class="col-12 text-muted"><small>Data tidak tersedia</small></div>';
+}
+
+// Old comparison table function (keeping for reference, not used anymore)
+function renderComparisonTable(currentData, proposedData) {
+    if (!currentData || !proposedData) {
+        return '<tr><td colspan="3" class="text-center text-muted">Data tidak tersedia</td></tr>';
+    }
+    
+    const fields = [
+        { label: 'NIP', key: 'nip' },
+        { label: 'Nama', key: 'nama' },
+        { label: 'Jabatan', key: 'jabatan' },
+        { label: 'Golongan', key: 'golongan' },
+        { label: 'Unit', key: 'unit' },
+        { label: 'Status', key: 'status_karyawan' },
+    ];
+    
+    let html = '';
+    
+    fields.forEach(field => {
+        const currentValue = currentData[field.key] || '-';
+        const proposedValue = proposedData[field.key] || '-';
+        const isChanged = currentValue !== proposedValue;
+        
+        const rowBg = isChanged ? 'background: #fff3cd;' : '';
+        const cellStyle = isChanged ? 'color: var(--primary); font-weight: 600;' : '';
+        
+        html += `
+            <tr style="${rowBg}">
+                <td style="${cellStyle}">${field.label}</td>
+                <td style="${cellStyle}">${currentValue}</td>
+                <td style="${cellStyle}">${proposedValue}</td>
+            </tr>
+        `;
+    });
+    
+    return html;
 }
 
 // Helper function to go back to riwayat list
@@ -2548,28 +2666,64 @@ function updateDetailPerubahan(selectElement) {
     // Clear existing options
     detailSelect.innerHTML = '<option value="">-- Pilih Detail Perubahan --</option>';
     
-    // Define the action type to reason mapping
+    // Define the action type to reason mapping (SAP Standard)
     const actionReasons = {
-        'Actual Conversion': ['Actual Conversion'],
-        'Change of Status': ['Change of Employment Type'],
-        'Contract Extension': ['Contract Position'],
-        'Demotion': ['Poor Performance'],
-        'New Hire': ['Contract Position', 'Pensioner', 'Permanent Position'],
-        'Pass Probation': ['Permanent Position'],
-        'Promotion': ['Job Grade Promotion', 'Position Promotion'],
-        'Service Extension': ['Permanent Position'],
-        'Termination': [
-            'Cancel Join', 'Criminal Offence', 'Deceased', 'Dismissal - Major Misconduct',
-            'Dismissal - Minor Misconduct', 'End of Contract', 'Failed Probation',
-            'Long Sickness', 'Mass Termination', 'Pension', 'Poor Performance',
-            'Resign - Back to School', 'Resign - Career Opportunities', 'Resign - Family',
-            'Resign - Management', 'Resign - Medical', 'Resign - Rem & Benefits',
-            'Resign - Work Arrangements', 'Resign - Work Environment'
+        'promotion': [
+            'Job Grade Promotion',
+            'Position Promotion'
         ],
-        'Transfer': [
-            'End of Covering Peer Position', 'Intra-Unit Transfer', 'Organization Restructuring',
-            'Start Covering Peer Position', 'Start of Intl. Assignment', 'Transfer between Unit',
+        'demotion': [
+            'Poor Performance'
+        ],
+        'transfer': [
+            'End of Covering Peer Position',
+            'Intra-Unit Transfer',
+            'Organization Restructuring',
+            'Start Covering Peer Position',
+            'Start of Intl. Assignment',
+            'Transfer between Unit',
             'Transfer to Other Entity'
+        ],
+        'termination': [
+            'Cancel Join',
+            'Criminal Offence',
+            'Deceased',
+            'Dismissal - Major Misconduct',
+            'Dismissal - Minor Misconduct',
+            'End of Contract',
+            'Failed Probation',
+            'Long Sickness',
+            'Mass Termination',
+            'Pension',
+            'Poor Performance',
+            'Resign - Back to School',
+            'Resign - Career Opportunities',
+            'Resign - Family',
+            'Resign - Management',
+            'Resign - Medical',
+            'Resign - Rem & Benefits',
+            'Resign - Work Arrangements',
+            'Resign - Work Environment'
+        ],
+        'new_hire': [
+            'Contract Position',
+            'Pensioner',
+            'Permanent Position'
+        ],
+        'contract_extension': [
+            'Contract Position'
+        ],
+        'actual_conversion': [
+            'Actual Conversion'
+        ],
+        'change_of_status': [
+            'Change of Employment Type'
+        ],
+        'pass_probation': [
+            'Permanent Position'
+        ],
+        'service_extension': [
+            'Permanent Position'
         ]
     };
     
