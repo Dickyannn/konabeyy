@@ -576,11 +576,22 @@ class PersonalAdminController extends Controller
             'status_karyawan' => $employee?->statusKaryawan?->nama_status ?? 'N/A',
         ];
         
-        $riwayat->current_data = $currentData;
-        $riwayat->proposed_data = $proposedData;
-        
+        // Return data as array to ensure proper JSON serialization
         return response()->json([
-            'data' => $riwayat
+            'data' => [
+                'id' => $riwayat->id,
+                'nip' => $riwayat->nip,
+                'nama' => $riwayat->nama,
+                'tipe_perubahan' => $riwayat->tipe_perubahan,
+                'jenis_perubahan' => $riwayat->jenis_perubahan,
+                'detail_perubahan' => $riwayat->detail_perubahan,
+                'tgl_efektif' => $riwayat->tgl_efektif,
+                'tanggal_efektif' => $riwayat->tanggal_efektif,
+                'nomor_sk' => $riwayat->nomor_sk,
+                'catatan' => $riwayat->catatan,
+                'current_data' => $currentData,
+                'proposed_data' => $proposedData,
+            ]
         ]);
     }
 
@@ -728,4 +739,300 @@ class PersonalAdminController extends Controller
             ]
         ]);
     }
+
+    // ══════════════════════════════════════════════════════
+    //  DATA KELUARGA
+    // ══════════════════════════════════════════════════════
+    
+    /**
+     * List karyawan dengan jumlah keluarga
+     */
+    public function keluargaIndex()
+    {
+        $karyawans = EmployeeKaryawan::with(['golongan', 'unit', 'statusKaryawan', 'currentPosition.costCenter'])
+            ->where('is_active', true)
+            ->withCount('anggotaKeluarga')
+            ->orderBy('nama_karyawan')
+            ->get()
+            ->map(function($k) {
+                return [
+                    'id' => $k->id,
+                    'nip' => $k->nip,
+                    'nama' => $k->nama_karyawan,
+                    'jabatan' => $k->jabatan ?? '-',
+                    'golongan' => $k->golongan?->kode_golongan ?? '-',
+                    'cost_center' => $k->currentPosition?->costCenter?->nama_cc ?? '-',
+                    'unit' => $k->unit?->nama_pt ?? '-',
+                    'status' => $k->statusKaryawan?->nama_status ?? '-',
+                    'jumlah_keluarga' => $k->anggota_keluarga_count + 1, // +1 untuk karyawan sendiri
+                ];
+            });
+
+        return response()->json(['data' => $karyawans]);
+    }
+
+    /**
+     * View data keluarga karyawan
+     */
+    public function keluargaView(EmployeeKaryawan $karyawan)
+    {
+        $karyawan->load(['anggotaKeluarga' => function($q) {
+            $q->orderBy('status_keluarga');
+        }, 'unit']);
+
+        $familyMembers = $karyawan->anggotaKeluarga->map(function($member) {
+            return [
+                'id' => $member->id,
+                'status_keluarga' => $member->status_keluarga,
+                'status_keluarga_label' => \App\Models\EmployeeAnggotaKeluarga::getStatusKeluargaOptions()[$member->status_keluarga] ?? $member->status_keluarga,
+                'nik' => $member->nik ?? '-',
+                'nama' => $member->nama,
+                'tanggal_lahir' => $member->tanggal_lahir ? $member->tanggal_lahir->format('Y-m-d') : '-',
+                'tanggal_lahir_display' => $member->tanggal_lahir ? $member->tanggal_lahir->format('d/m/Y') : '-',
+                'is_active' => $member->is_active,
+                'is_active_label' => $member->is_active ? 'Aktif' : 'Nonaktif',
+            ];
+        });
+
+        return response()->json([
+            'data' => [
+                'karyawan' => [
+                    'id' => $karyawan->id,
+                    'nip' => $karyawan->nip,
+                    'nama' => $karyawan->nama_karyawan,
+                    'jabatan' => $karyawan->jabatan ?? '-',
+                    'unit' => $karyawan->unit?->nama_pt ?? '-',
+                ],
+                'family_members' => $familyMembers,
+            ]
+        ]);
+    }
+
+    /**
+     * Get data keluarga untuk edit (batch)
+     */
+    public function keluargaEdit(EmployeeKaryawan $karyawan)
+    {
+        $karyawan->load(['anggotaKeluarga' => function($q) {
+            $q->orderBy('status_keluarga');
+        }]);
+
+        $familyMembers = $karyawan->anggotaKeluarga->map(function($member) {
+            return [
+                'id' => $member->id,
+                'status_keluarga' => $member->status_keluarga,
+                'nik' => $member->nik ?? '',
+                'nama' => $member->nama,
+                'tanggal_lahir' => $member->tanggal_lahir ? $member->tanggal_lahir->format('Y-m-d') : '',
+                'is_active' => $member->is_active,
+            ];
+        });
+
+        return response()->json([
+            'data' => [
+                'karyawan_id' => $karyawan->id,
+                'karyawan_nip' => $karyawan->nip,
+                'karyawan_nama' => $karyawan->nama_karyawan,
+                'family_members' => $familyMembers,
+            ]
+        ]);
+    }
+
+    /**
+     * Update data keluarga (batch edit)
+     */
+    public function keluargaUpdate(Request $request, EmployeeKaryawan $karyawan)
+    {
+        try {
+            \DB::beginTransaction();
+
+            // STEP 1: Get all current family data BEFORE any changes
+            $currentFamilyData = $karyawan->anggotaKeluarga->map(function($member) {
+                return [
+                    'id' => $member->id,
+                    'status_keluarga' => $member->status_keluarga,
+                    'nik' => $member->nik,
+                    'nama' => $member->nama,
+                    'tanggal_lahir' => $member->tanggal_lahir ? $member->tanggal_lahir->format('Y-m-d') : null,
+                    'is_active' => $member->is_active,
+                ];
+            })->toArray();
+
+            // STEP 2: Save before_update snapshot for each member (data lama)
+            foreach ($currentFamilyData as $oldData) {
+                \App\Models\ObsMasterDataKeluarga::logFamilyMemberChange(
+                    $karyawan->id,
+                    'before_update',
+                    $oldData['id'],
+                    'Batch edit data keluarga',
+                    $oldData,
+                    null
+                );
+            }
+
+            // STEP 3: Process updates - Update employee_anggota_keluarga with new data
+            $familyData = $request->input('family_members', []);
+
+            foreach ($familyData as $memberData) {
+                $memberId = $memberData['id'] ?? null;
+                
+                $dataToSave = [
+                    'id_karyawan' => $karyawan->id,
+                    'status_keluarga' => $memberData['status_keluarga'],
+                    'nik' => $memberData['nik'] ?? null,
+                    'nama' => $memberData['nama'],
+                    'tanggal_lahir' => $memberData['tanggal_lahir'] ?? null,
+                    'is_active' => $memberData['is_active'] ?? true,
+                ];
+
+                if ($memberId && $memberId > 0) {
+                    // Update existing member
+                    $member = \App\Models\EmployeeAnggotaKeluarga::find($memberId);
+                    if ($member) {
+                        $member->update($dataToSave);
+                    }
+                } else {
+                    // Create new member
+                    $member = \App\Models\EmployeeAnggotaKeluarga::create($dataToSave);
+                    
+                    // Log new member creation
+                    \App\Models\ObsMasterDataKeluarga::logFamilyMemberChange(
+                        $karyawan->id,
+                        'create',
+                        $member->id,
+                        'Tambah anggota keluarga via batch edit',
+                        null,
+                        array_merge(['id' => $member->id], $dataToSave)
+                    );
+                }
+            }
+
+            \DB::commit();
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Data keluarga berhasil diupdate'
+            ]);
+
+        } catch (\Exception $e) {
+            \DB::rollBack();
+            \Log::error('Error updating family data: ' . $e->getMessage());
+            \DB::commit();
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Data keluarga berhasil diupdate'
+            ]);
+
+        } catch (\Exception $e) {
+            \DB::rollBack();
+            \Log::error('Error updating family data: ' . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'message' => 'Terjadi kesalahan saat menyimpan data'
+            ], 500);
+        }
+    }
+
+    /**
+                'success' => false,
+                'message' => 'Terjadi kesalahan saat menyimpan data'
+            ], 500);
+        }
+    }
+
+    /**
+     * Tambah anggota keluarga baru
+     */
+    public function keluargaStore(Request $request)
+    {
+        try {
+            $data = $request->validate([
+                'id_karyawan' => 'required|exists:employee_karyawan,id',
+                'status_keluarga' => 'required|in:spouse,child,father,mother,in-law',
+                'nik' => 'nullable|string|max:16',
+                'nama' => 'required|string|max:150',
+                'tanggal_lahir' => 'nullable|date',
+                'is_active' => 'boolean',
+            ]);
+
+            \DB::beginTransaction();
+
+            // Create family member
+            $member = \App\Models\EmployeeAnggotaKeluarga::create([
+                'id_karyawan' => $data['id_karyawan'],
+                'status_keluarga' => $data['status_keluarga'],
+                'nik' => $data['nik'] ?? null,
+                'nama' => $data['nama'],
+                'tanggal_lahir' => $data['tanggal_lahir'] ?? null,
+                'is_active' => $data['is_active'] ?? true,
+            ]);
+
+            // Log to obs_master_data_keluarga with detailed fields
+            \App\Models\ObsMasterDataKeluarga::logFamilyMemberChange(
+                $data['id_karyawan'],
+                'create',
+                $member->id,
+                'Tambah anggota keluarga baru',
+                null,
+                [
+                    'id' => $member->id,
+                    'status_keluarga' => $member->status_keluarga,
+                    'nik' => $member->nik,
+                    'nama' => $member->nama,
+                    'tanggal_lahir' => $member->tanggal_lahir ? $member->tanggal_lahir->format('Y-m-d') : null,
+                    'is_active' => $member->is_active,
+                ]
+            );
+
+            \DB::commit();
+
+            return back()->with('success', "Anggota keluarga {$member->nama} berhasil ditambahkan.");
+
+        } catch (\Exception $e) {
+            \DB::rollBack();
+            \Log::error('Error storing family member: ' . $e->getMessage());
+            return back()->with('error', 'Terjadi kesalahan saat menyimpan data: ' . $e->getMessage());
+        }
+    }
+
+    /**
+     * Soft delete anggota keluarga
+     */
+    public function keluargaDestroy(\App\Models\EmployeeAnggotaKeluarga $anggotaKeluarga)
+    {
+        try {
+            \DB::beginTransaction();
+
+            // Save snapshot before delete with detailed fields
+            \App\Models\ObsMasterDataKeluarga::logFamilyMemberChange(
+                $anggotaKeluarga->id_karyawan,
+                'delete',
+                $anggotaKeluarga->id,
+                'Soft delete anggota keluarga',
+                [
+                    'id' => $anggotaKeluarga->id,
+                    'status_keluarga' => $anggotaKeluarga->status_keluarga,
+                    'nik' => $anggotaKeluarga->nik,
+                    'nama' => $anggotaKeluarga->nama,
+                    'tanggal_lahir' => $anggotaKeluarga->tanggal_lahir ? $anggotaKeluarga->tanggal_lahir->format('Y-m-d') : null,
+                    'is_active' => $anggotaKeluarga->is_active,
+                ],
+                null
+            );
+
+            // Soft delete
+            $anggotaKeluarga->update(['is_active' => false]);
+
+            \DB::commit();
+
+            return back()->with('success', "Anggota keluarga {$anggotaKeluarga->nama} dinonaktifkan.");
+
+        } catch (\Exception $e) {
+            \DB::rollBack();
+            \Log::error('Error deleting family member: ' . $e->getMessage());
+            return back()->with('error', 'Terjadi kesalahan saat menghapus data');
+        }
+    }
 }
+

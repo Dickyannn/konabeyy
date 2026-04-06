@@ -165,6 +165,14 @@ Route::middleware(['auth', 'role:personal_admin'])->prefix('personal-admin')->na
     
     // Get employee current data for riwayat form
     Route::get('/employee-current/{karyawan}', [PersonalAdminController::class, 'getEmployeeCurrentData'])->name('employee.current');
+
+    // Data Keluarga
+    Route::get('/keluarga', [PersonalAdminController::class, 'keluargaIndex'])->name('keluarga.index');
+    Route::get('/keluarga/{karyawan}/view', [PersonalAdminController::class, 'keluargaView'])->name('keluarga.view');
+    Route::get('/keluarga/{karyawan}/edit', [PersonalAdminController::class, 'keluargaEdit'])->name('keluarga.edit');
+    Route::post('/keluarga/{karyawan}/update', [PersonalAdminController::class, 'keluargaUpdate'])->name('keluarga.update');
+    Route::post('/keluarga', [PersonalAdminController::class, 'keluargaStore'])->name('keluarga.store');
+    Route::delete('/keluarga/{anggotaKeluarga}', [PersonalAdminController::class, 'keluargaDestroy'])->name('keluarga.destroy');
 });
 
 

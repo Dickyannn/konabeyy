@@ -492,6 +492,18 @@
             </div>
         </div>
 
+        <!-- 7. Data Keluarga -->
+        <div class="col-12 col-sm-6 col-lg-4">
+            <div class="menu-card" data-bs-toggle="modal" data-bs-target="#modalKeluarga">
+                <div class="menu-card-top">
+                    <span class="menu-card-icon">👨‍👩‍👧‍👦</span>
+                    <span class="menu-badge badge-crud">CRUD</span>
+                </div>
+                <div class="menu-card-title">Data Keluarga</div>
+                <div class="menu-card-desc">Kelola data anggota keluarga karyawan</div>
+            </div>
+        </div>
+
     </div>
 
     <div class="access-note">
@@ -1542,6 +1554,185 @@
                         </div>
                     </form>
                 </div>
+
+                <!-- TAB: Detail Riwayat (View) -->
+                <div id="riwayat-view" class="tab-pane">
+                    <!-- Content will be dynamically populated by viewRiwayat() function -->
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+
+<!-- ══════════════════════════════════════════════════════════ -->
+<!--  MODAL 7: DATA KELUARGA                                    -->
+<!-- ══════════════════════════════════════════════════════════ -->
+<div class="modal fade" id="modalKeluarga" tabindex="-1">
+    <div class="modal-dialog modal-xl modal-dialog-scrollable">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">👨‍👩‍👧‍👦 Data Keluarga</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+
+                <!-- Custom Tabs -->
+                <div class="modal-tabs">
+                    <button class="modal-tab active" onclick="switchTab(this, 'keluarga-list')">
+                        <i class="bi bi-table me-1"></i> Data Keluarga
+                    </button>
+                    <button class="modal-tab" onclick="switchTab(this, 'keluarga-tambah')">
+                        <i class="bi bi-person-plus me-1"></i> Tambah Data Keluarga
+                    </button>
+                </div>
+
+                <!-- TAB: Data Keluarga (List) -->
+                <div id="keluarga-list" class="tab-pane active">
+                    <div class="search-bar">
+                        <div class="search-input-wrap">
+                            <i class="bi bi-search"></i>
+                            <input type="text" class="form-control" placeholder="Cari NIP, nama..." oninput="filterTable(this, 'tblKeluarga')">
+                        </div>
+                        <button class="btn-primary-hrms" onclick="switchTabById('keluarga-tambah')">
+                            <i class="bi bi-plus-lg"></i> Tambah
+                        </button>
+                    </div>
+                    <div class="table-responsive">
+                        <table class="table table-hrms table-borderless" id="tblKeluarga">
+                            <thead>
+                                <tr>
+                                    <th>NIP</th><th>Nama</th><th>Jabatan</th>
+                                    <th>Golongan</th><th>Cost Center</th><th>Unit</th>
+                                    <th>Status</th><th>Jumlah Keluarga</th><th>Aksi</th>
+                                </tr>
+                            </thead>
+                            <tbody id="keluargaTableBody">
+                                <tr><td colspan="9" class="text-center py-4"><i class="bi bi-hourglass-split"></i> Loading...</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- TAB: Tambah Data Keluarga -->
+                <div id="keluarga-tambah" class="tab-pane">
+                    <form action="{{ route('personal-admin.keluarga.store') }}" method="POST">
+                        @csrf
+                        <div class="modal-section-title">Pilih Karyawan</div>
+                        <div class="row g-3 mb-4">
+                            <div class="col-12">
+                                <label class="form-label">Karyawan <span class="text-danger">*</span></label>
+                                <select name="id_karyawan" class="form-select" required>
+                                    <option value="">-- Pilih Karyawan --</option>
+                                    @foreach($karyawans as $k)
+                                        <option value="{{ $k->id }}">{{ $k->nip }} - {{ $k->nama_karyawan }}</option>
+                                    @endforeach
+                                </select>
+                            </div>
+                        </div>
+
+                        <div class="modal-section-title">Data Anggota Keluarga</div>
+                        <div class="row g-3">
+                            <div class="col-sm-4">
+                                <label class="form-label">Status Keluarga <span class="text-danger">*</span></label>
+                                <select name="status_keluarga" class="form-select" required>
+                                    <option value="">-- Pilih Status --</option>
+                                    <option value="spouse">Suami/Istri</option>
+                                    <option value="child">Anak</option>
+                                    <option value="father">Ayah</option>
+                                    <option value="mother">Ibu</option>
+                                    <option value="in-law">Mertua</option>
+                                </select>
+                            </div>
+                            <div class="col-sm-4">
+                                <label class="form-label">NIK</label>
+                                <input type="text" name="nik" class="form-control" placeholder="16 digit" maxlength="16">
+                            </div>
+                            <div class="col-sm-4">
+                                <label class="form-label">Nama Lengkap <span class="text-danger">*</span></label>
+                                <input type="text" name="nama" class="form-control" placeholder="Nama lengkap" required>
+                            </div>
+                            <div class="col-sm-4">
+                                <label class="form-label">Tanggal Lahir</label>
+                                <input type="date" name="tanggal_lahir" class="form-control">
+                            </div>
+                            <div class="col-sm-4">
+                                <label class="form-label">Status Aktif</label>
+                                <select name="is_active" class="form-select">
+                                    <option value="1">Aktif</option>
+                                    <option value="0">Nonaktif</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div class="d-flex gap-2 mt-4">
+                            <button type="submit" class="btn-primary-hrms"><i class="bi bi-check-lg"></i> Simpan</button>
+                            <button type="button" class="btn-outline-hrms" onclick="switchTabById('keluarga-list')">Batal</button>
+                        </div>
+                    </form>
+                </div>
+
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- POPUP: View Data Keluarga -->
+<div class="modal fade" id="popupViewKeluarga" tabindex="-1">
+    <div class="modal-dialog modal-lg modal-dialog-scrollable">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">👁️ View Data Keluarga</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body" id="viewKeluargaContent">
+                <div class="text-center py-4"><i class="bi bi-hourglass-split"></i> Loading...</div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn-primary-hrms" onclick="openEditKeluargaPopup()">
+                    <i class="bi bi-pencil"></i> Edit
+                </button>
+                <button type="button" class="btn-outline-hrms" data-bs-dismiss="modal">Tutup</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- POPUP: Edit Data Keluarga -->
+<div class="modal fade" id="popupEditKeluarga" tabindex="-1">
+    <div class="modal-dialog modal-xl modal-dialog-scrollable">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">✏️ Edit Data Keluarga</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="alert alert-info alert-dismissible fade show" role="alert" style="border-radius:12px;border:1.5px solid #0dcaf0;">
+                    <i class="bi bi-info-circle-fill me-2"></i>
+                    <strong>Edit Batch:</strong> Semua perubahan akan disimpan dalam satu transaksi. Data lama akan disimpan sebagai backup.
+                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                </div>
+                
+                <div id="editKeluargaErrorContainer" style="display:none;" class="alert alert-danger alert-dismissible fade show" role="alert">
+                    <i class="bi bi-exclamation-triangle-fill me-2"></i>
+                    <strong>Terdapat kesalahan:</strong>
+                    <ul id="editKeluargaErrors" class="mb-0 mt-2"></ul>
+                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                </div>
+
+                <form id="formEditKeluarga">
+                    <input type="hidden" id="editKaryawanId" name="karyawan_id">
+                    <div id="editKeluargaFormContent">
+                        <div class="text-center py-4"><i class="bi bi-hourglass-split"></i> Loading...</div>
+                    </div>
+                    
+                    <div class="d-flex gap-2 mt-4">
+                        <button type="button" class="btn-primary-hrms" onclick="submitEditKeluargaPopup()">
+                            <i class="bi bi-check-lg"></i> Simpan Semua Perubahan
+                        </button>
+                        <button type="button" class="btn-outline-hrms" data-bs-dismiss="modal">Batal</button>
+                    </div>
+                </form>
             </div>
         </div>
     </div>
@@ -2579,12 +2770,12 @@ function renderDetailComparison(data) {
     
     fields.forEach(field => {
         html += `
-            <div class="col-12 mb-2">
-                <small class="text-muted d-block" style="font-size: 0.75rem; font-weight: 600;">
+            <div class="col-12 mb-3">
+                <label class="form-label" style="font-size: 0.8rem; font-weight: 700; margin-bottom: 0.5rem;">
                     ${field.label}
-                </small>
-                <div style="padding: 0.5rem 0.75rem; background: rgba(255,255,255,0.6); border-radius: 6px; border-left: 3px solid var(--primary); margin-top: 0.25rem;">
-                    <strong style="color: var(--primary-dark);">${field.value}</strong>
+                </label>
+                <div class="form-control form-control-sm" style="background: white; border: 1px solid #dee2e6; color: #495057; font-weight: 500;">
+                    ${field.value}
                 </div>
             </div>
         `;
@@ -3102,3 +3293,331 @@ document.addEventListener('DOMContentLoaded', function() {
 </script>
 </body>
 </html>
+
+
+<script>
+// ══════════════════════════════════════════════════════════
+//  DATA KELUARGA FUNCTIONS
+// ══════════════════════════════════════════════════════════
+
+let currentKaryawanIdForKeluarga = null;
+
+// Load keluarga data when modal opens
+document.getElementById('modalKeluarga')?.addEventListener('shown.bs.modal', function() {
+    loadKeluargaData();
+});
+
+function loadKeluargaData() {
+    fetch('/personal-admin/keluarga')
+        .then(response => response.json())
+        .then(result => {
+            const tbody = document.getElementById('keluargaTableBody');
+            if (!result.data || result.data.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="9" class="text-center py-4 text-muted">Tidak ada data</td></tr>';
+                return;
+            }
+
+            tbody.innerHTML = result.data.map(k => `
+                <tr>
+                    <td class="text-muted" style="font-size:.75rem;font-weight:600;">${k.nip}</td>
+                    <td style="font-weight:600;">${k.nama}</td>
+                    <td>${k.jabatan}</td>
+                    <td><span class="badge-aktif" style="background:rgba(0,146,180,0.1);color:var(--primary);border-color:rgba(0,146,180,0.25);">${k.golongan}</span></td>
+                    <td>${k.cost_center}</td>
+                    <td>${k.unit}</td>
+                    <td><span class="badge-permanent">${k.status}</span></td>
+                    <td><strong style="color:var(--primary);">${k.jumlah_keluarga}</strong></td>
+                    <td>
+                        <button class="btn-sm-action btn-view" onclick="viewKeluargaData(${k.id})" title="Lihat detail">
+                            <i class="bi bi-eye"></i> View
+                        </button>
+                    </td>
+                </tr>
+            `).join('');
+        })
+        .catch(error => {
+            console.error('Error loading keluarga data:', error);
+            document.getElementById('keluargaTableBody').innerHTML = 
+                '<tr><td colspan="9" class="text-center py-4 text-danger">Error loading data</td></tr>';
+        });
+}
+
+function viewKeluargaData(karyawanId) {
+    currentKaryawanIdForKeluarga = karyawanId;
+    
+    fetch(`/personal-admin/keluarga/${karyawanId}/view`)
+        .then(response => response.json())
+        .then(result => {
+            const data = result.data;
+            const karyawan = data.karyawan;
+            const familyMembers = data.family_members;
+
+            const content = `
+                <div class="modal-section-title">Informasi Karyawan</div>
+                <div class="row g-3 mb-4">
+                    <div class="col-sm-3">
+                        <label class="form-label">NIP</label>
+                        <div class="form-control-plaintext">${karyawan.nip}</div>
+                    </div>
+                    <div class="col-sm-3">
+                        <label class="form-label">Nama</label>
+                        <div class="form-control-plaintext">${karyawan.nama}</div>
+                    </div>
+                    <div class="col-sm-3">
+                        <label class="form-label">Jabatan</label>
+                        <div class="form-control-plaintext">${karyawan.jabatan}</div>
+                    </div>
+                    <div class="col-sm-3">
+                        <label class="form-label">Unit</label>
+                        <div class="form-control-plaintext">${karyawan.unit}</div>
+                    </div>
+                </div>
+
+                <div class="modal-section-title">Anggota Keluarga</div>
+                <div class="table-responsive">
+                    <table class="table table-hrms table-borderless">
+                        <thead>
+                            <tr>
+                                <th>Status Keluarga</th>
+                                <th>NIK</th>
+                                <th>Nama</th>
+                                <th>Tanggal Lahir</th>
+                                <th>Status</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${familyMembers.length > 0 ? familyMembers.map(member => `
+                                <tr>
+                                    <td><span class="badge-aktif" style="background:rgba(0,146,180,0.1);color:var(--primary);">${member.status_keluarga_label}</span></td>
+                                    <td>${member.nik}</td>
+                                    <td style="font-weight:600;">${member.nama}</td>
+                                    <td>${member.tanggal_lahir_display}</td>
+                                    <td><span class="${member.is_active ? 'badge-aktif' : 'badge-nonaktif'}">${member.is_active_label}</span></td>
+                                </tr>
+                            `).join('') : '<tr><td colspan="5" class="text-center py-4 text-muted">Belum ada anggota keluarga</td></tr>'}
+                        </tbody>
+                    </table>
+                </div>
+            `;
+
+            document.getElementById('viewKeluargaContent').innerHTML = content;
+            
+            // Show popup
+            const popup = new bootstrap.Modal(document.getElementById('popupViewKeluarga'));
+            popup.show();
+        })
+        .catch(error => {
+            console.error('Error viewing keluarga data:', error);
+            alert('Gagal memuat data keluarga');
+        });
+}
+
+function openEditKeluargaPopup() {
+    if (!currentKaryawanIdForKeluarga) {
+        alert('Karyawan ID tidak ditemukan');
+        return;
+    }
+
+    // Hide view popup
+    bootstrap.Modal.getInstance(document.getElementById('popupViewKeluarga'))?.hide();
+
+    // Load edit data
+    fetch(`/personal-admin/keluarga/${currentKaryawanIdForKeluarga}/edit`)
+        .then(response => response.json())
+        .then(result => {
+            const data = result.data;
+            document.getElementById('editKaryawanId').value = data.karyawan_id;
+
+            let formHtml = `
+                <div class="alert alert-info" style="border-radius:12px;border:1.5px solid #0dcaf0;font-size:0.875rem;">
+                    <i class="bi bi-person-fill me-2"></i>
+                    <strong>${data.karyawan_nip} - ${data.karyawan_nama}</strong>
+                </div>
+            `;
+
+            if (data.family_members.length === 0) {
+                formHtml += `
+                    <div class="text-center py-4 text-muted">
+                        <i class="bi bi-inbox" style="font-size:2rem;display:block;margin-bottom:0.5rem;opacity:0.4;"></i>
+                        <p>Belum ada anggota keluarga. Tambahkan melalui menu "Tambah Data Keluarga".</p>
+                    </div>
+                `;
+            } else {
+                data.family_members.forEach((member, index) => {
+                    formHtml += `
+                        <div class="modal-section-title">Anggota Keluarga ${index + 1}</div>
+                        <div class="row g-3 mb-3">
+                            <input type="hidden" name="family_members[${index}][id]" value="${member.id}">
+                            <div class="col-sm-3">
+                                <label class="form-label">Status Keluarga <span class="text-danger">*</span></label>
+                                <select name="family_members[${index}][status_keluarga]" class="form-select" required>
+                                    <option value="">-- Pilih Status --</option>
+                                    <option value="spouse" ${member.status_keluarga === 'spouse' ? 'selected' : ''}>Suami/Istri</option>
+                                    <option value="child" ${member.status_keluarga === 'child' ? 'selected' : ''}>Anak</option>
+                                    <option value="father" ${member.status_keluarga === 'father' ? 'selected' : ''}>Ayah</option>
+                                    <option value="mother" ${member.status_keluarga === 'mother' ? 'selected' : ''}>Ibu</option>
+                                    <option value="in-law" ${member.status_keluarga === 'in-law' ? 'selected' : ''}>Mertua</option>
+                                </select>
+                            </div>
+                            <div class="col-sm-3">
+                                <label class="form-label">NIK</label>
+                                <input type="text" name="family_members[${index}][nik]" class="form-control" value="${member.nik || ''}" maxlength="16">
+                            </div>
+                            <div class="col-sm-3">
+                                <label class="form-label">Nama Lengkap <span class="text-danger">*</span></label>
+                                <input type="text" name="family_members[${index}][nama]" class="form-control" value="${member.nama}" required>
+                            </div>
+                            <div class="col-sm-2">
+                                <label class="form-label">Tanggal Lahir</label>
+                                <input type="date" name="family_members[${index}][tanggal_lahir]" class="form-control" value="${member.tanggal_lahir || ''}">
+                            </div>
+                            <div class="col-sm-1">
+                                <label class="form-label">Status Aktif</label>
+                                <select name="family_members[${index}][is_active]" class="form-select">
+                                    <option value="1" ${member.is_active ? 'selected' : ''}>Aktif</option>
+                                    <option value="0" ${!member.is_active ? 'selected' : ''}>Nonaktif</option>
+                                </select>
+                            </div>
+                        </div>
+                    `;
+                });
+            }
+
+            formHtml += `
+                <button type="button" class="btn-outline-hrms mt-3" onclick="addFamilyMemberEditRowPopup()">
+                    <i class="bi bi-plus-lg"></i> Tambah Anggota
+                </button>
+            `;
+
+            document.getElementById('editKeluargaFormContent').innerHTML = formHtml;
+            
+            // Show edit popup
+            const popup = new bootstrap.Modal(document.getElementById('popupEditKeluarga'));
+            popup.show();
+        })
+        .catch(error => {
+            console.error('Error loading edit data:', error);
+            alert('Gagal memuat data untuk edit');
+        });
+}
+
+function addFamilyMemberEditRowPopup() {
+    const container = document.getElementById('editKeluargaFormContent');
+    const currentCount = container.querySelectorAll('[name^="family_members"]').length / 6; // 6 fields per member
+    const index = currentCount;
+
+    const newRow = `
+        <div class="modal-section-title">Anggota Keluarga ${index + 1}</div>
+        <div class="row g-3 mb-3">
+            <input type="hidden" name="family_members[${index}][id]" value="0">
+            <div class="col-sm-3">
+                <label class="form-label">Status Keluarga <span class="text-danger">*</span></label>
+                <select name="family_members[${index}][status_keluarga]" class="form-select" required>
+                    <option value="">-- Pilih Status --</option>
+                    <option value="spouse">Suami/Istri</option>
+                    <option value="child">Anak</option>
+                    <option value="father">Ayah</option>
+                    <option value="mother">Ibu</option>
+                    <option value="in-law">Mertua</option>
+                </select>
+            </div>
+            <div class="col-sm-3">
+                <label class="form-label">NIK</label>
+                <input type="text" name="family_members[${index}][nik]" class="form-control" maxlength="16">
+            </div>
+            <div class="col-sm-3">
+                <label class="form-label">Nama Lengkap <span class="text-danger">*</span></label>
+                <input type="text" name="family_members[${index}][nama]" class="form-control" required>
+            </div>
+            <div class="col-sm-2">
+                <label class="form-label">Tanggal Lahir</label>
+                <input type="date" name="family_members[${index}][tanggal_lahir]" class="form-control">
+            </div>
+            <div class="col-sm-1">
+                <label class="form-label">Status Aktif</label>
+                <select name="family_members[${index}][is_active]" class="form-select">
+                    <option value="1" selected>Aktif</option>
+                    <option value="0">Nonaktif</option>
+                </select>
+            </div>
+        </div>
+    `;
+
+    // Insert before the "Tambah Anggota" button
+    const addButton = container.querySelector('button[onclick="addFamilyMemberEditRowPopup()"]');
+    addButton.insertAdjacentHTML('beforebegin', newRow);
+}
+
+function submitEditKeluargaPopup() {
+    const form = document.getElementById('formEditKeluarga');
+    const formData = new FormData(form);
+    const karyawanId = document.getElementById('editKaryawanId').value;
+
+    // Convert FormData to JSON
+    const familyMembers = [];
+    const entries = Array.from(formData.entries());
+    
+    // Group by index
+    const grouped = {};
+    entries.forEach(([key, value]) => {
+        const match = key.match(/family_members\[(\d+)\]\[(\w+)\]/);
+        if (match) {
+            const index = match[1];
+            const field = match[2];
+            if (!grouped[index]) grouped[index] = {};
+            grouped[index][field] = value;
+        }
+    });
+
+    // Convert to array
+    Object.values(grouped).forEach(member => {
+        familyMembers.push({
+            id: parseInt(member.id) || 0,
+            status_keluarga: member.status_keluarga,
+            nik: member.nik || null,
+            nama: member.nama,
+            tanggal_lahir: member.tanggal_lahir || null,
+            is_active: member.is_active === '1',
+        });
+    });
+
+    // Hide error container
+    document.getElementById('editKeluargaErrorContainer').style.display = 'none';
+
+    // Submit via AJAX
+    fetch(`/personal-admin/keluarga/${karyawanId}/update`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content
+        },
+        body: JSON.stringify({ family_members: familyMembers })
+    })
+    .then(response => response.json())
+    .then(result => {
+        if (result.success) {
+            // Close popup
+            bootstrap.Modal.getInstance(document.getElementById('popupEditKeluarga'))?.hide();
+            
+            // Reload data
+            loadKeluargaData();
+            
+            // Show success message
+            alert('✓ Data keluarga berhasil diupdate');
+        } else {
+            // Show error
+            const errorContainer = document.getElementById('editKeluargaErrorContainer');
+            const errorList = document.getElementById('editKeluargaErrors');
+            errorList.innerHTML = `<li>${result.message || 'Terjadi kesalahan'}</li>`;
+            errorContainer.style.display = 'block';
+        }
+    })
+    .catch(error => {
+        console.error('Error updating keluarga:', error);
+        const errorContainer = document.getElementById('editKeluargaErrorContainer');
+        const errorList = document.getElementById('editKeluargaErrors');
+        errorList.innerHTML = '<li>Terjadi kesalahan saat menyimpan data</li>';
+        errorContainer.style.display = 'block';
+    });
+}
+</script>

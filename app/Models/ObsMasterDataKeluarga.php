@@ -102,28 +102,18 @@ class ObsMasterDataKeluarga extends Model
     public static function logFamilyMemberChange($employeeId, $actionType, $anggotaKeluargaId = null, $changeReason = null, $dataBefore = null, $dataAfter = null)
     {
         try {
-            // Get authenticated user ID with validation
+            // Get authenticated user ID
             $userId = auth()->id();
             
-            // Verify user exists
-            if ($userId && !\App\Models\User::where('id', $userId)->exists()) {
-                $userId = null;
-            }
-            
-            // Fallback to first available user
+            // If no authenticated user, try to find any valid user
             if (!$userId) {
                 $firstUser = \App\Models\User::first();
                 $userId = $firstUser ? $firstUser->id : null;
             }
             
-            // If still no valid user, default to 1 but only if it exists
+            // If still no user, use default ID 1
             if (!$userId) {
-                if (\App\Models\User::where('id', 1)->exists()) {
-                    $userId = 1;
-                } else {
-                    // Skip audit if no valid user found
-                    return null;
-                }
+                $userId = 1;
             }
             
             // Prepare snapshot data

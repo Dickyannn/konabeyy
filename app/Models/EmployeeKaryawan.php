@@ -144,4 +144,12 @@ class EmployeeKaryawan extends Model
     {
         return $this->hasOne(EmployeePosition::class, 'id_karyawan')->where('is_current', true);
     }
+
+    /**
+     * Get anggota keluarga
+     */
+    public function anggotaKeluarga(): HasMany
+    {
+        return $this->hasMany(EmployeeAnggotaKeluarga::class, 'id_karyawan');
+    }
 }
