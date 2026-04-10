@@ -173,6 +173,11 @@ Route::middleware(['auth', 'role:personal_admin'])->prefix('personal-admin')->na
     Route::post('/keluarga/{karyawan}/update', [PersonalAdminController::class, 'keluargaUpdate'])->name('keluarga.update');
     Route::post('/keluarga', [PersonalAdminController::class, 'keluargaStore'])->name('keluarga.store');
     Route::delete('/keluarga/{anggotaKeluarga}', [PersonalAdminController::class, 'keluargaDestroy'])->name('keluarga.destroy');
+
+    // Export to Excel
+    Route::get('/export/karyawan', [PersonalAdminController::class, 'exportKaryawan'])->name('export.karyawan');
+    Route::get('/export/riwayat', [PersonalAdminController::class, 'exportRiwayat'])->name('export.riwayat');
+    Route::get('/export/keluarga', [PersonalAdminController::class, 'exportKeluarga'])->name('export.keluarga');
 });
 
 

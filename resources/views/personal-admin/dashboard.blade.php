@@ -211,6 +211,16 @@
             display: inline-flex; align-items: center; gap: 0.4rem;
         }
         .btn-primary-hrms:hover { opacity: 0.9; transform: translateY(-1px); }
+        .btn-success-hrms {
+            background: linear-gradient(135deg, #198754, #157347);
+            border: none; border-radius: 10px; color: #fff; font-weight: 700;
+            font-size: 0.875rem; padding: 0.6rem 1.25rem;
+            box-shadow: 0 3px 12px rgba(25,135,84,0.28); cursor: pointer;
+            transition: opacity 0.2s, transform 0.15s; font-family: 'Plus Jakarta Sans', sans-serif;
+            display: inline-flex; align-items: center; gap: 0.4rem;
+            text-decoration: none;
+        }
+        .btn-success-hrms:hover { opacity: 0.9; transform: translateY(-1px); color: #fff; }
         .btn-outline-hrms {
             border: 1.5px solid var(--border); border-radius: 10px; color: var(--text-muted);
             font-weight: 600; font-size: 0.875rem; padding: 0.6rem 1.25rem;
@@ -557,6 +567,9 @@
                                 <option value="{{ $unit->nama_pt }}">{{ $unit->nama_pt }}</option>
                             @endforeach
                         </select>
+                        <a href="{{ route('personal-admin.export.karyawan') }}" class="btn-success-hrms" title="Export ke Excel">
+                            <i class="bi bi-file-earmark-excel"></i> Export
+                        </a>
                         <button class="btn-primary-hrms" onclick="switchTabById('karyawan-tambah')">
                             <i class="bi bi-plus-lg"></i> Tambah
                         </button>
@@ -1385,12 +1398,15 @@
                             <i class="bi bi-search"></i>
                             <input type="text" class="form-control" placeholder="Cari atau filter tipe..." onkeyup="filterRiwayatTable(this)">
                         </div>
-                        <select class="form-select" style="width:auto;min-width:220px;" onchange="filterRiwayatByKaryawan(this)">
+                        <select class="form-select" style="width:auto;min-width:220px;" onchange="filterRiwayatByKaryawan(this)" id="selectFilterKaryawan">
                             <option value="">-- Semua Karyawan --</option>
                             @foreach($karyawans as $k)
-                                <option value="{{ $k->nip }}">{{ $k->nip }} - {{ $k->nama_karyawan }}</option>
+                                <option value="{{ $k->nip }}" data-id="{{ $k->id }}">{{ $k->nip }} - {{ $k->nama_karyawan }}</option>
                             @endforeach
                         </select>
+                        <button class="btn-success-hrms" onclick="exportRiwayat()" title="Export ke Excel">
+                            <i class="bi bi-file-earmark-excel"></i> Export
+                        </button>
                         <button class="btn-primary-hrms" onclick="switchTabById('riwayat-form')"><i class="bi bi-plus-lg"></i> Catat</button>
                     </div>
                     <div class="table-responsive">
@@ -1689,6 +1705,9 @@
                 <div class="text-center py-4"><i class="bi bi-hourglass-split"></i> Loading...</div>
             </div>
             <div class="modal-footer">
+                <button type="button" class="btn-success-hrms" onclick="exportKeluargaKaryawan()" title="Export Data Keluarga Karyawan Ini">
+                    <i class="bi bi-file-earmark-excel"></i> Export
+                </button>
                 <button type="button" class="btn-primary-hrms" onclick="openEditKeluargaPopup()">
                     <i class="bi bi-pencil"></i> Edit
                 </button>
@@ -3290,6 +3309,41 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 });
+
+// ══════════════════════════════════════════════════════
+//  EXPORT FUNCTIONS
+// ══════════════════════════════════════════════════════
+
+/**
+ * Export Riwayat Jabatan
+ * Export all or per employee based on filter
+ */
+function exportRiwayat() {
+    const selectFilter = document.getElementById('selectFilterKaryawan');
+    const selectedOption = selectFilter.options[selectFilter.selectedIndex];
+    const karyawanId = selectedOption.getAttribute('data-id');
+    
+    let url = '{{ route("personal-admin.export.riwayat") }}';
+    
+    if (karyawanId) {
+        url += '?id_karyawan=' + karyawanId;
+    }
+    
+    window.location.href = url;
+}
+
+/**
+ * Export Data Keluarga untuk karyawan yang sedang dilihat
+ */
+function exportKeluargaKaryawan() {
+    if (!currentKaryawanIdForKeluarga) {
+        alert('Tidak ada data karyawan yang dipilih');
+        return;
+    }
+    
+    const url = '{{ route("personal-admin.export.keluarga") }}?id_karyawan=' + currentKaryawanIdForKeluarga;
+    window.location.href = url;
+}
 </script>
 </body>
 </html>

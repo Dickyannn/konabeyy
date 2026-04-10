@@ -7,13 +7,20 @@ use App\Models\EmployeeKaryawan;
 use App\Models\EmployeePosition;
 use App\Models\EmployeeFasilitasKendaraan;
 use App\Models\EmployeeRiwayatJabatan;
+use App\Models\EmployeeAnggotaKeluarga;
 use App\Models\ObsMasterDataKaryawan;
+use App\Models\ObsMasterDataKeluarga;
 use App\Models\MasterGolongan;
 use App\Models\MasterUnitPt;
 use App\Models\MasterCostCenter;
 use App\Models\Auth\AuditLog;
 use Illuminate\Http\Request;
 use Carbon\Carbon;
+use PhpOffice\PhpSpreadsheet\Spreadsheet;
+use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
+use PhpOffice\PhpSpreadsheet\Style\Fill;
+use PhpOffice\PhpSpreadsheet\Style\Alignment;
+use PhpOffice\PhpSpreadsheet\Style\Border;
 
 class PersonalAdminController extends Controller
 {
@@ -784,7 +791,7 @@ class PersonalAdminController extends Controller
             return [
                 'id' => $member->id,
                 'status_keluarga' => $member->status_keluarga,
-                'status_keluarga_label' => \App\Models\EmployeeAnggotaKeluarga::getStatusKeluargaOptions()[$member->status_keluarga] ?? $member->status_keluarga,
+                'status_keluarga_label' => EmployeeAnggotaKeluarga::getStatusKeluargaOptions()[$member->status_keluarga] ?? $member->status_keluarga,
                 'nik' => $member->nik ?? '-',
                 'nama' => $member->nama,
                 'tanggal_lahir' => $member->tanggal_lahir ? $member->tanggal_lahir->format('Y-m-d') : '-',
@@ -887,13 +894,13 @@ class PersonalAdminController extends Controller
 
                 if ($memberId && $memberId > 0) {
                     // Update existing member
-                    $member = \App\Models\EmployeeAnggotaKeluarga::find($memberId);
+                    $member = EmployeeAnggotaKeluarga::find($memberId);
                     if ($member) {
                         $member->update($dataToSave);
                     }
                 } else {
                     // Create new member
-                    $member = \App\Models\EmployeeAnggotaKeluarga::create($dataToSave);
+                    $member = EmployeeAnggotaKeluarga::create($dataToSave);
                     
                     // Log new member creation
                     \App\Models\ObsMasterDataKeluarga::logFamilyMemberChange(
@@ -959,7 +966,7 @@ class PersonalAdminController extends Controller
             \DB::beginTransaction();
 
             // Create family member
-            $member = \App\Models\EmployeeAnggotaKeluarga::create([
+            $member = EmployeeAnggotaKeluarga::create([
                 'id_karyawan' => $data['id_karyawan'],
                 'status_keluarga' => $data['status_keluarga'],
                 'nik' => $data['nik'] ?? null,
@@ -999,7 +1006,7 @@ class PersonalAdminController extends Controller
     /**
      * Soft delete anggota keluarga
      */
-    public function keluargaDestroy(\App\Models\EmployeeAnggotaKeluarga $anggotaKeluarga)
+    public function keluargaDestroy(EmployeeAnggotaKeluarga $anggotaKeluarga)
     {
         try {
             \DB::beginTransaction();
@@ -1032,6 +1039,339 @@ class PersonalAdminController extends Controller
             \DB::rollBack();
             \Log::error('Error deleting family member: ' . $e->getMessage());
             return back()->with('error', 'Terjadi kesalahan saat menghapus data');
+        }
+    }
+
+    // ══════════════════════════════════════════════════════
+    //  EXPORT TO EXCEL
+    // ══════════════════════════════════════════════════════
+
+    /**
+     * Export Data Karyawan to Excel
+     * Export all employee data from employee_karyawan table
+     */
+    public function exportKaryawan()
+    {
+        try {
+            $spreadsheet = new Spreadsheet();
+            $sheet = $spreadsheet->getActiveSheet();
+            
+            // Set document properties
+            $spreadsheet->getProperties()
+                ->setCreator('HR Portal')
+                ->setTitle('Data Karyawan')
+                ->setSubject('Export Data Karyawan')
+                ->setDescription('Data seluruh karyawan dari sistem HR Portal');
+
+            // Header styling
+            $headerStyle = [
+                'font' => ['bold' => true, 'color' => ['rgb' => 'FFFFFF'], 'size' => 11],
+                'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['rgb' => '0092B4']],
+                'alignment' => ['horizontal' => Alignment::HORIZONTAL_CENTER, 'vertical' => Alignment::VERTICAL_CENTER],
+                'borders' => ['allBorders' => ['borderStyle' => Border::BORDER_THIN, 'color' => ['rgb' => '000000']]]
+            ];
+
+            // Set headers
+            $headers = ['No', 'NIP', 'NIK', 'Nama', 'Tanggal Lahir', 'Jenis Kelamin', 'Alamat', 'Email', 'No. Telepon', 
+                        'Jabatan', 'Golongan', 'Unit/PT', 'Status Kawin', 'Status Karyawan', 'Tanggal Masuk', 'Status Aktif'];
+            
+            $col = 'A';
+            foreach ($headers as $header) {
+                $sheet->setCellValue($col . '1', $header);
+                $col++;
+            }
+            $sheet->getStyle('A1:P1')->applyFromArray($headerStyle);
+            $sheet->getRowDimension(1)->setRowHeight(25);
+
+            // Get data
+            $karyawans = EmployeeKaryawan::with(['golongan', 'unit', 'statusKawin', 'statusKaryawan'])
+                ->orderBy('nip')
+                ->get();
+
+            // Fill data
+            $row = 2;
+            $no = 1;
+            foreach ($karyawans as $karyawan) {
+                $sheet->setCellValue('A' . $row, $no++);
+                $sheet->setCellValue('B' . $row, $karyawan->nip);
+                $sheet->setCellValue('C' . $row, $karyawan->nik);
+                $sheet->setCellValue('D' . $row, $karyawan->nama_karyawan);
+                $sheet->setCellValue('E' . $row, $karyawan->tanggal_lahir ? $karyawan->tanggal_lahir->format('d/m/Y') : '-');
+                $sheet->setCellValue('F' . $row, $karyawan->jenis_kelamin);
+                $sheet->setCellValue('G' . $row, $karyawan->alamat ?? '-');
+                $sheet->setCellValue('H' . $row, $karyawan->email ?? '-');
+                $sheet->setCellValue('I' . $row, $karyawan->nomor_telepon ?? '-');
+                $sheet->setCellValue('J' . $row, $karyawan->jabatan ?? '-');
+                $sheet->setCellValue('K' . $row, $karyawan->golongan->nama_golongan ?? '-');
+                $sheet->setCellValue('L' . $row, $karyawan->unit->nama_pt ?? '-');
+                $sheet->setCellValue('M' . $row, $karyawan->statusKawin->nama_status ?? '-');
+                $sheet->setCellValue('N' . $row, $karyawan->statusKaryawan->nama_status ?? '-');
+                $sheet->setCellValue('O' . $row, $karyawan->tanggal_masuk ? $karyawan->tanggal_masuk->format('d/m/Y') : '-');
+                $sheet->setCellValue('P' . $row, $karyawan->is_active ? 'Aktif' : 'Tidak Aktif');
+                $row++;
+            }
+
+            // Auto-size columns
+            foreach (range('A', 'P') as $col) {
+                $sheet->getColumnDimension($col)->setAutoSize(true);
+            }
+
+            // Apply borders to all data
+            $sheet->getStyle('A1:P' . ($row - 1))->applyFromArray([
+                'borders' => ['allBorders' => ['borderStyle' => Border::BORDER_THIN]]
+            ]);
+
+            // Generate filename
+            $filename = 'Data_Karyawan_' . date('Ymd_His') . '.xlsx';
+
+            // Create writer and download
+            $writer = new Xlsx($spreadsheet);
+            
+            header('Content-Type: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+            header('Content-Disposition: attachment;filename="' . $filename . '"');
+            header('Cache-Control: max-age=0');
+            
+            $writer->save('php://output');
+            exit;
+
+        } catch (\Exception $e) {
+            \Log::error('Error exporting karyawan: ' . $e->getMessage());
+            return back()->with('error', 'Gagal export data karyawan: ' . $e->getMessage());
+        }
+    }
+
+    /**
+     * Export History Data Karyawan to Excel
+     * Can export all or per employee
+     */
+    public function exportRiwayat(Request $request)
+    {
+        try {
+            $spreadsheet = new Spreadsheet();
+            $sheet = $spreadsheet->getActiveSheet();
+            
+            // Set document properties
+            $spreadsheet->getProperties()
+                ->setCreator('HR Portal')
+                ->setTitle('History Data Karyawan')
+                ->setSubject('Export Riwayat Jabatan')
+                ->setDescription('Riwayat perubahan data karyawan dari sistem HR Portal');
+
+            // Header styling
+            $headerStyle = [
+                'font' => ['bold' => true, 'color' => ['rgb' => 'FFFFFF'], 'size' => 11],
+                'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['rgb' => '0092B4']],
+                'alignment' => ['horizontal' => Alignment::HORIZONTAL_CENTER, 'vertical' => Alignment::VERTICAL_CENTER],
+                'borders' => ['allBorders' => ['borderStyle' => Border::BORDER_THIN, 'color' => ['rgb' => '000000']]]
+            ];
+
+            // Set headers
+            $headers = ['No', 'NIP', 'Nama', 'Tipe Perubahan', 'Detail Perubahan', 'Jabatan Lama', 'Jabatan Baru', 
+                        'Golongan Lama', 'Golongan Baru', 'Tanggal Efektif', 'No. SK', 'Keterangan'];
+            
+            $col = 'A';
+            foreach ($headers as $header) {
+                $sheet->setCellValue($col . '1', $header);
+                $col++;
+            }
+            $sheet->getStyle('A1:L1')->applyFromArray($headerStyle);
+            $sheet->getRowDimension(1)->setRowHeight(25);
+
+            // Get data - filter by employee if provided
+            $query = EmployeeRiwayatJabatan::with(['karyawan', 'golonganLamaRelation', 'golonganBaruRelation'])
+                ->orderBy('tgl_efektif', 'desc');
+            
+            if ($request->has('id_karyawan') && $request->id_karyawan) {
+                $query->where('id_karyawan', $request->id_karyawan);
+            }
+            
+            $riwayats = $query->get();
+
+            // Fill data
+            $row = 2;
+            $no = 1;
+            foreach ($riwayats as $riwayat) {
+                $sheet->setCellValue('A' . $row, $no++);
+                $sheet->setCellValue('B' . $row, $riwayat->nip ?? $riwayat->karyawan->nip);
+                $sheet->setCellValue('C' . $row, $riwayat->nama ?? $riwayat->karyawan->nama_karyawan);
+                $sheet->setCellValue('D' . $row, ucfirst($riwayat->jenis_perubahan));
+                $sheet->setCellValue('E' . $row, $riwayat->detail_perubahan ?? '-');
+                $sheet->setCellValue('F' . $row, $riwayat->jabatan_lama ?? '-');
+                $sheet->setCellValue('G' . $row, $riwayat->jabatan_baru ?? '-');
+                $sheet->setCellValue('H' . $row, $riwayat->golonganLamaRelation->nama_golongan ?? '-');
+                $sheet->setCellValue('I' . $row, $riwayat->golonganBaruRelation->nama_golongan ?? '-');
+                $sheet->setCellValue('J' . $row, $riwayat->tgl_efektif ? $riwayat->tgl_efektif->format('d/m/Y') : '-');
+                $sheet->setCellValue('K' . $row, $riwayat->nomor_sk ?? '-');
+                $sheet->setCellValue('L' . $row, $riwayat->catatan ?? '-');
+                $row++;
+            }
+
+            // Auto-size columns
+            foreach (range('A', 'L') as $col) {
+                $sheet->getColumnDimension($col)->setAutoSize(true);
+            }
+
+            // Apply borders to all data
+            if ($row > 2) {
+                $sheet->getStyle('A1:L' . ($row - 1))->applyFromArray([
+                    'borders' => ['allBorders' => ['borderStyle' => Border::BORDER_THIN]]
+                ]);
+            }
+
+            // Generate filename
+            $filename = 'Riwayat_Jabatan_' . ($request->id_karyawan ? 'Karyawan_' : 'Semua_') . date('Ymd_His') . '.xlsx';
+
+            // Create writer and download
+            $writer = new Xlsx($spreadsheet);
+            
+            header('Content-Type: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+            header('Content-Disposition: attachment;filename="' . $filename . '"');
+            header('Cache-Control: max-age=0');
+            
+            $writer->save('php://output');
+            exit;
+
+        } catch (\Exception $e) {
+            \Log::error('Error exporting riwayat: ' . $e->getMessage());
+            return back()->with('error', 'Gagal export riwayat: ' . $e->getMessage());
+        }
+    }
+
+    /**
+     * Export Data Keluarga to Excel
+     * Can export all or per employee
+     */
+    public function exportKeluarga(Request $request)
+    {
+        try {
+            $spreadsheet = new Spreadsheet();
+            $sheet = $spreadsheet->getActiveSheet();
+            
+            // Set document properties
+            $spreadsheet->getProperties()
+                ->setCreator('HR Portal')
+                ->setTitle('Data Keluarga Karyawan')
+                ->setSubject('Export Data Keluarga')
+                ->setDescription('Data keluarga karyawan dari sistem HR Portal');
+
+            // Get karyawan info if id provided
+            $karyawanInfo = null;
+            if ($request->has('id_karyawan') && $request->id_karyawan) {
+                $karyawanInfo = EmployeeKaryawan::find($request->id_karyawan);
+            }
+
+            // Add karyawan info at top if available
+            if ($karyawanInfo) {
+                $sheet->setCellValue('A1', 'Data Keluarga Karyawan');
+                $sheet->mergeCells('A1:H1');
+                $sheet->getStyle('A1')->getFont()->setBold(true)->setSize(14);
+                $sheet->getStyle('A1')->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+                
+                $sheet->setCellValue('A2', 'NIP:');
+                $sheet->setCellValue('B2', $karyawanInfo->nip);
+                $sheet->setCellValue('D2', 'Nama:');
+                $sheet->setCellValue('E2', $karyawanInfo->nama_karyawan);
+                $sheet->getStyle('A2:H2')->getFont()->setBold(true);
+                
+                $headerRow = 4;
+            } else {
+                $headerRow = 1;
+            }
+
+            // Header styling
+            $headerStyle = [
+                'font' => ['bold' => true, 'color' => ['rgb' => 'FFFFFF'], 'size' => 11],
+                'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['rgb' => '0092B4']],
+                'alignment' => ['horizontal' => Alignment::HORIZONTAL_CENTER, 'vertical' => Alignment::VERTICAL_CENTER],
+                'borders' => ['allBorders' => ['borderStyle' => Border::BORDER_THIN, 'color' => ['rgb' => '000000']]]
+            ];
+
+            // Set headers
+            $headers = ['No', 'Status Keluarga', 'NIK', 'Nama Anggota Keluarga', 'Tanggal Lahir', 'Tanggungan', 'Status Aktif'];
+            
+            $col = 'A';
+            foreach ($headers as $header) {
+                $sheet->setCellValue($col . $headerRow, $header);
+                $col++;
+            }
+            $sheet->getStyle('A' . $headerRow . ':G' . $headerRow)->applyFromArray($headerStyle);
+            $sheet->getRowDimension($headerRow)->setRowHeight(25);
+
+            // Get data - filter by employee if provided
+            $query = EmployeeAnggotaKeluarga::where('is_active', true)
+                ->orderBy('id_karyawan');
+            
+            if ($request->has('id_karyawan') && $request->id_karyawan) {
+                $query->where('id_karyawan', $request->id_karyawan);
+            }
+            
+            $keluargas = $query->get();
+
+            // Fill data
+            $row = $headerRow + 1;
+            $no = 1;
+            
+            if ($keluargas->isEmpty()) {
+                // No family data
+                $sheet->setCellValue('A' . $row, '-');
+                $sheet->setCellValue('B' . $row, '-');
+                $sheet->setCellValue('C' . $row, '-');
+                $sheet->setCellValue('D' . $row, 'Tidak ada anggota keluarga');
+                $sheet->setCellValue('E' . $row, '-');
+                $sheet->setCellValue('F' . $row, '-');
+                $sheet->setCellValue('G' . $row, '-');
+                $sheet->getStyle('D' . $row)->getFont()->setItalic(true);
+                $row++;
+            } else {
+                foreach ($keluargas as $keluarga) {
+                    $statusKeluarga = match($keluarga->status_keluarga) {
+                        'spouse' => 'Suami/Istri',
+                        'child' => 'Anak',
+                        'father' => 'Ayah',
+                        'mother' => 'Ibu',
+                        'in-law' => 'Mertua',
+                        default => $keluarga->status_keluarga
+                    };
+
+                    $sheet->setCellValue('A' . $row, $no++);
+                    $sheet->setCellValue('B' . $row, $statusKeluarga);
+                    $sheet->setCellValue('C' . $row, $keluarga->nik ?? '-');
+                    $sheet->setCellValue('D' . $row, $keluarga->nama);
+                    $sheet->setCellValue('E' . $row, $keluarga->tanggal_lahir ? Carbon::parse($keluarga->tanggal_lahir)->format('d/m/Y') : '-');
+                    $sheet->setCellValue('F' . $row, $keluarga->is_tanggungan ? 'Ya' : 'Tidak');
+                    $sheet->setCellValue('G' . $row, $keluarga->is_active ? 'Aktif' : 'Tidak Aktif');
+                    $row++;
+                }
+            }
+
+            // Auto-size columns
+            foreach (range('A', 'G') as $col) {
+                $sheet->getColumnDimension($col)->setAutoSize(true);
+            }
+
+            // Apply borders to all data
+            if ($row > $headerRow + 1) {
+                $sheet->getStyle('A' . $headerRow . ':G' . ($row - 1))->applyFromArray([
+                    'borders' => ['allBorders' => ['borderStyle' => Border::BORDER_THIN]]
+                ]);
+            }
+
+            // Generate filename
+            $filename = 'Data_Keluarga_' . ($karyawanInfo ? $karyawanInfo->nip . '_' : '') . date('Ymd_His') . '.xlsx';
+
+            // Create writer and download
+            $writer = new Xlsx($spreadsheet);
+            
+            header('Content-Type: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+            header('Content-Disposition: attachment;filename="' . $filename . '"');
+            header('Cache-Control: max-age=0');
+            
+            $writer->save('php://output');
+            exit;
+
+        } catch (\Exception $e) {
+            \Log::error('Error exporting keluarga: ' . $e->getMessage());
+            return back()->with('error', 'Gagal export data keluarga: ' . $e->getMessage());
         }
     }
 }
